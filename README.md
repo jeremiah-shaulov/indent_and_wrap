@@ -1,4 +1,4 @@
-# indent_and_wrap
+# indent_and_wrap: Text utility for Deno
 Finds and replaces common indent in text, and hard-wraps text.
 
 # Example
@@ -9,11 +9,12 @@ import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.1/mod.ts';
 
 # Exported symbols
 
-- [calcLines()](#calcLines) - Count number of lines in text string, and determine column number of the last character.
-- [findCommonIndent()](#findCommonIndent) - Scan text string, and find leading space characters, that are common across all lines.
-- [indentAndWrap()](#indentAndWrap) - Indent or unindent and wrap text.
+- [calcLines()](#calclines) - Count number of lines in text string, and determine column number of the last character.
+- [findCommonIndent()](#findcommonindent) - Scan text string, and find leading space characters, that are common across all lines.
+- [indentAndWrap()](#indentandwrap) - Indent or unindent and wrap text.
+- [IndentAndWrapOptions](#indentandwrap)
 
-# calcLines
+# calcLines()
 
 ```ts
 function calcLines(text: string, from=0, to=Number.MAX_SAFE_INTEGER, tabWidth=4)
@@ -23,7 +24,7 @@ Count number of lines in text string, and determine column number of the last ch
 
 This function only considers text substring from `from` to `to`.
 
-# findCommonIndent
+# findCommonIndent()
 
 ```ts
 function findCommonIndent(text: string, ignoreFirstIndent=false)
@@ -35,7 +36,7 @@ If `ignoreFirstIndent` is set, then the leading space on the first line is not c
 
 This function uses fast algorithm that avoids splitting text to lines array.
 
-# indentAndWrap
+# indentAndWrap()
 
 ```ts
 function indentAndWrap(text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string)
