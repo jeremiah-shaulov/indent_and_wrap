@@ -4,7 +4,7 @@ Finds and replaces common indent, and hard-wraps text. Can work on text that con
 # Example
 
 ```ts
-import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.1/mod.ts';
+import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.5/mod.ts';
 
 console.log
 (	indentAndWrap
