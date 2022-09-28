@@ -1,5 +1,5 @@
 # indent_and_wrap: Text utility for Deno
-Finds and replaces common indent in text, and hard-wraps text.
+Finds and replaces common indent, and hard-wraps text. Can work on text that contains terminal escape sequences.
 
 # Example
 
@@ -15,46 +15,33 @@ console.log
 );
 ```
 
-# Exported symbols
+Result:
 
-- [calcLines()](#calclines) - Count number of lines in text string, and determine column number of the last character.
-- [findCommonIndent()](#findcommonindent) - Scan text string, and find leading space characters, that are common across all lines.
+```
+        Lorem ipsum dolor sit amet,
+        consectetur adipiscing elit, sed do
+        eiusmod tempor incididunt ut labore
+        et dolore magna aliqua.
+```
+
+# Exported functions
+
 - [indentAndWrap()](#indentandwrap) - Indent or unindent and wrap text.
-- [IndentAndWrapOptions](#indentandwrap)
+- [findCommonIndent()](#findcommonindent) - Scan text string, and find leading space characters, that are common across all lines.
+- [calcLines()](#calclines) - Count number of lines in text string, and determine column number of the last character.
 
-# calcLines()
-
-```ts
-function calcLines(text: string, from=0, to=Number.MAX_SAFE_INTEGER, tabWidth=4): {nLine: number, nColumn: number}
-```
-
-Count number of lines in text string, and determine column number of the last character.
-
-This function only considers text substring from `from` to `to`.
-
-# findCommonIndent()
+## indentAndWrap()
 
 ```ts
-function findCommonIndent(text: string, ignoreFirstIndent=false): string
-```
-
-Scan text string, and find leading space characters, that are common across all lines.
-
-If `ignoreFirstIndent` is set, then the leading space on the first line is not counted, so the provided text string can be trimmed.
-
-This function uses fast algorithm that avoids splitting text to lines array.
-
-# indentAndWrap()
-
-```ts
-function indentAndWrap(text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string): string
+function indentAndWrap(text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string): string;
 
 type IndentAndWrapOptions =
-{	indent?: string;
+{	endl?: string;
+	indent?: string;
 	ignoreFirstIndent?: boolean;
 	wrapWidth?: number;
 	tabWidth?: number;
-	endl?: string;
+	mode?: 'plain' | 'term';
 };
 ```
 
@@ -66,3 +53,39 @@ If `options.ignoreFirstIndent` is set, will look for common indent starting at s
 If you already know the common indent (e.g. you called `findCommonIndent()`), you can provide it as `knownCommonIndent` to save some calculation time.
 If `knownCommonIndent` doesn't match the result of `findCommonIndent()`, the behavior is undefined.
 - If `options.wrapWidth` is set, it inserts `options.endl`, so there're no lines longer than `options.wrapWidth` columns. Columns are calculated with respect to `options.tabWidth` (default 4).
+
+## findCommonIndent()
+
+```ts
+function findCommonIndent(text: string, options?: FindCommonIndentOptions): string;
+
+type FindCommonIndentOptions =
+{	ignoreFirstIndent?: boolean;
+	mode?: 'plain' | 'term';
+};
+```
+
+Scan text string, and find leading space characters, that are common across all lines.
+
+If `ignoreFirstIndent` is set, then the leading space on the first line is not counted, so the provided text string can be trimmed.
+
+If `options.mode` is `term`, then terminal escape sequences (like VT100 color codes) can be part of indent.
+
+This function uses fast algorithm that avoids splitting text to lines array.
+
+## calcLines()
+
+```ts
+function calcLines(text: string, options?: CalcLinesOptions, from=0, to=Number.MAX_SAFE_INTEGER): {nLine: number, nColumn: number};
+
+type CalcLinesOptions =
+{	tabWidth?: number;
+	mode?: 'plain' | 'term';
+};
+```
+
+Count number of lines in text string, and determine column number of the last character.
+
+This function only considers text substring from `from` to `to`.
+
+If `options.mode` is `term`, skips terminal escape sequences (like VT100 color codes).
