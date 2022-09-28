@@ -333,5 +333,27 @@ Deno.test
 			),
 			"  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n"
 		);
+
+		assertEquals
+		(	indentAndWrap
+			(	` \tLorem ipsum dolor sit amet, consectetur
+				 \tadipiscing elit, sed do eiusmod tempor incididunt ut labore et
+				 \tdolore magna aliqua.
+				`,
+				{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true}
+			),
+			"  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n"
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	` \t  Lorem ipsum dolor sit amet, consectetur
+				 \t  adipiscing elit, sed do eiusmod tempor incididunt ut labore et
+				 \t  dolore magna aliqua.
+				`,
+				{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true}
+			),
+			"  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n"
+		);
 	}
 );

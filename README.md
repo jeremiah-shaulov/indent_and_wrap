@@ -5,6 +5,14 @@ Finds and replaces common indent in text, and hard-wraps text.
 
 ```ts
 import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.1/mod.ts';
+
+console.log
+(	indentAndWrap
+	(	`	Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+		`,
+		{wrapWidth: 40, indent: '\t'}
+	)
+);
 ```
 
 # Exported symbols
@@ -17,7 +25,7 @@ import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.1/mod.ts';
 # calcLines()
 
 ```ts
-function calcLines(text: string, from=0, to=Number.MAX_SAFE_INTEGER, tabWidth=4)
+function calcLines(text: string, from=0, to=Number.MAX_SAFE_INTEGER, tabWidth=4): {nLine: number, nColumn: number}
 ```
 
 Count number of lines in text string, and determine column number of the last character.
@@ -27,7 +35,7 @@ This function only considers text substring from `from` to `to`.
 # findCommonIndent()
 
 ```ts
-function findCommonIndent(text: string, ignoreFirstIndent=false)
+function findCommonIndent(text: string, ignoreFirstIndent=false): string
 ```
 
 Scan text string, and find leading space characters, that are common across all lines.
@@ -39,7 +47,7 @@ This function uses fast algorithm that avoids splitting text to lines array.
 # indentAndWrap()
 
 ```ts
-function indentAndWrap(text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string)
+function indentAndWrap(text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string): string
 
 type IndentAndWrapOptions =
 {	indent?: string;
