@@ -2,7 +2,9 @@ import {calcLines, indentAndWrap, CalcLinesOptions, IndentAndWrapOptions} from '
 import {assertEquals} from "https://deno.land/std@0.157.0/testing/asserts.ts";
 
 const ESCAPES =
-[	'\x1B[A',
+[	'\x07',
+	'\x1B[A',
+	'\x1B[100u',
 	'\x1B[1~',
 	'\x1B[10~',
 	'\x1B[93;41m',
@@ -110,7 +112,35 @@ Deno.test
 				),
 				{nLine: 1, nColumn: 3}
 			);
+
+			assertEquals
+			(	calcLines
+				(	insertTermEscapes('abc\nde\rf\r\nxyz\t', state),
+					calcLinesStateToMode(state)
+				),
+				{nLine: 4, nColumn: 5}
+			);
 		}
+
+		assertEquals
+		(	calcLines('\x07a'),
+			{nLine: 1, nColumn: 3}
+		);
+
+		assertEquals
+		(	calcLines('\n\x1B[A'),
+			{nLine: 2, nColumn: 4}
+		);
+
+		assertEquals
+		(	calcLines('\n\x1B[A', {mode: 'term'}),
+			{nLine: 2, nColumn: 1}
+		);
+
+		assertEquals
+		(	calcLines('\n\x1B[A#', {mode: 'term'}),
+			{nLine: 2, nColumn: 2}
+		);
 	}
 );
 

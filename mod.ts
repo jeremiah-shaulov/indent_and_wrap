@@ -3,6 +3,7 @@ const C_TAB = '\t'.charCodeAt(0);
 const C_CR = '\r'.charCodeAt(0);
 const C_LF = '\n'.charCodeAt(0);
 const C_ESC = 0x1B;
+const C_BEL = 7;
 
 // deno-lint-ignore no-control-regex
 const RE_TERM_ESCAPE = /\[[\x30-\x3F]*[\x20-\x2F]*[\x40-\x7E]|[PX^_].*?\x1B\\|\][^\a]*(?:\a|\x1B\\)|[\[\]A-Z\\^_@]/y;
@@ -117,11 +118,16 @@ export function findCommonIndent(text: string, options?: FindCommonIndentOptions
 		{	commonFrom = i + 1;
 		}
 		else if (c!=C_SPACE && c!=C_TAB)
-		{	if (c==C_ESC && isTerm)
-			{	const pos = skipTermEscapeContinuation(text, i+1);
-				if (pos)
-				{	i = pos - 1; // will i++ on next iteration
-					continue;
+		{	if (isTerm)
+			{	if (c == C_BEL)
+				{	continue;
+				}
+				if (c == C_ESC)
+				{	const pos = skipTermEscapeContinuation(text, i+1);
+					if (pos)
+					{	i = pos - 1; // will i++ on next iteration
+						continue;
+					}
 				}
 			}
 			break;
@@ -154,7 +160,7 @@ export function findCommonIndent(text: string, options?: FindCommonIndentOptions
 	return text.slice(commonFrom, commonTo);
 }
 
-/**	Count number of lines in text string, and determine column number of the last character.
+/**	Count number of lines in text string, and determine column number after the last character.
 	This function only considers text substring from `from` to `to`.
  **/
 export function calcLines(text: string, options?: CalcLinesOptions, from=0, to=Number.MAX_SAFE_INTEGER)
@@ -183,6 +189,12 @@ export function calcLines(text: string, options?: CalcLinesOptions, from=0, to=N
 			
 			case C_TAB:
 				nColumn += tabWidth - nColumn%tabWidth;
+				break;
+
+			case C_BEL:
+				if (!isTerm)
+				{	nColumn++;
+				}
 				break;
 			
 			// deno-lint-ignore no-fallthrough
@@ -214,11 +226,17 @@ function precedingSpaceLen(text: string, i: number, isTerm: boolean)
 	while (i < length)
 	{	c = text.charCodeAt(i);
 		if (c!=C_SPACE && c!=C_TAB)
-		{	if (c==C_ESC && isTerm)
-			{	const pos = skipTermEscapeContinuation(text, i+1);
-				if (pos)
-				{	i = pos;
+		{	if (isTerm)
+			{	if (c == C_BEL)
+				{	i++;
 					continue;
+				}
+				if (c == C_ESC)
+				{	const pos = skipTermEscapeContinuation(text, i+1);
+					if (pos)
+					{	i = pos;
+						continue;
+					}
 				}
 			}
 			break;
@@ -272,10 +290,14 @@ function scanLine(text: string, i: number, wrapWidth: number, tabWidth: number, 
 				prevIsSpace = true;
 				break;
 
-			// deno-lint-ignore no-fallthrough
+
+			case C_BEL: // deno-lint-ignore no-fallthrough
 			case C_ESC:
 				if (isTerm)
-				{	const pos = skipTermEscapeContinuation(text, i+1);
+				{	if (c == C_BEL)
+					{	continue;
+					}
+					const pos = skipTermEscapeContinuation(text, i+1);
 					if (pos)
 					{	i = pos - 1; // will i++ on next iteration
 						continue;

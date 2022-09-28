@@ -28,7 +28,7 @@ Result:
 
 - [indentAndWrap()](#indentandwrap) - Indent or unindent and wrap text.
 - [findCommonIndent()](#findcommonindent) - Scan text string, and find leading space characters, that are common across all lines.
-- [calcLines()](#calclines) - Count number of lines in text string, and determine column number of the last character.
+- [calcLines()](#calclines) - Count number of lines in text string, and determine column number after the last character.
 
 ## indentAndWrap()
 
@@ -84,7 +84,7 @@ type CalcLinesOptions =
 };
 ```
 
-Count number of lines in text string, and determine column number of the last character.
+Count number of lines in text string, and determine column number after the last character.
 
 This function only considers text substring from `from` to `to`.
 
