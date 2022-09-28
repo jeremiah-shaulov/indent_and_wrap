@@ -6,6 +6,7 @@ const ESCAPES =
 	'\x1B[1~',
 	'\x1B[10~',
 	'\x1B[93;41m',
+	'\x1B[38;2;127;127;255m',
 ];
 let escapeEnum = 0;
 
