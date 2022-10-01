@@ -1,4 +1,4 @@
-import {calcLines, indentAndWrap, CalcLinesOptions, IndentAndWrapOptions} from './mod.ts';
+import {calcLines, indentAndWrap, getTextRect, CalcLinesOptions} from './mod.ts';
 import {assertEquals} from "https://deno.land/std@0.157.0/testing/asserts.ts";
 
 const ESCAPES =
@@ -543,5 +543,83 @@ Deno.test
 				`  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n`
 			);
 		}
+	}
+);
+
+Deno.test
+(	'getTextRect',
+	() =>
+	{	assertEquals
+		(	getTextRect
+			(	''
+			),
+			{nLines: 0, nColumns: 0}
+		);
+
+		assertEquals
+		(	getTextRect
+			(	' '
+			),
+			{nLines: 1, nColumns: 0}
+		);
+
+		assertEquals
+		(	getTextRect
+			(	'Line 1'
+			),
+			{nLines: 1, nColumns: 6}
+		);
+
+		assertEquals
+		(	getTextRect
+			(	'Line 1\n'
+			),
+			{nLines: 2, nColumns: 6}
+		);
+
+		assertEquals
+		(	getTextRect
+			(	'\nLine 1\nLine 2\n'
+			),
+			{nLines: 4, nColumns: 6}
+		);
+
+		assertEquals
+		(	getTextRect
+			(	'\n Line 1\nLine 2\n'
+			),
+			{nLines: 4, nColumns: 7}
+		);
+
+		assertEquals
+		(	getTextRect
+			(	'\n Line 1\n Line 2\n'
+			),
+			{nLines: 4, nColumns: 7}
+		);
+
+		assertEquals
+		(	getTextRect
+			(	' Line 1\n Line 2\n',
+				{indent: ''}
+			),
+			{nLines: 3, nColumns: 6}
+		);
+
+		assertEquals
+		(	getTextRect
+			(	' Line 1\n Line 2\n',
+				{indent: '****'}
+			),
+			{nLines: 3, nColumns: 10}
+		);
+
+		assertEquals
+		(	getTextRect
+			(	' Line 1\n Line 2\n',
+				{indent: '\n\t', wrapWidth: 80}
+			),
+			{nLines: 5, nColumns: 10}
+		);
 	}
 );

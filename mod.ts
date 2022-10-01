@@ -27,6 +27,14 @@ export type CalcLinesOptions =
 	mode?: 'plain' | 'term';
 };
 
+export type GetTextRectOptions =
+{	indent?: string;
+	ignoreFirstIndent?: boolean;
+	wrapWidth?: number;
+	tabWidth?: number;
+	mode?: 'plain' | 'term';
+};
+
 /**	This function does:
 	- Replaces new line characters (`\n`, `\r\n` or `\r`) to `options.endl`, or if it's not set to `\n`.
 	- If `options.indent` is set, it determines common indent characters across all lines, and replaces them with `options.indent` string.
@@ -37,6 +45,18 @@ export type CalcLinesOptions =
 	- If `options.wrapWidth` is set, it inserts `options.endl`, so there're no lines longer than `options.wrapWidth` columns. Columns are calculated with respect to `options.tabWidth` (default 4).
  **/
 export function indentAndWrap(text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string)
+{	return doIndentAndWrap(false, text, options, knownCommonIndent).res;
+}
+
+/**	This function works the same as `indentAndWrap()`, but it doesn't return resulting text, but it returns number of lines and columns the result occupies.
+	It only counts columns on non-blank lines.
+ **/
+export function getTextRect(text: string, options?: GetTextRectOptions, knownCommonIndent?: string)
+{	const {nLines, nColumns} = doIndentAndWrap(true, text, options, knownCommonIndent);
+	return {nLines, nColumns};
+}
+
+function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string)
 {	let indent = options?.indent;
 	const ignoreFirstIndent = options?.ignoreFirstIndent || false;
 	const wrapWidth = options?.wrapWidth || Number.MAX_SAFE_INTEGER;
@@ -46,9 +66,12 @@ export function indentAndWrap(text: string, options?: IndentAndWrapOptions, know
 	
 	let commonIndent = '';
 	let indentCol = 0;
+	let indentNLines = 1;
 	if (indent != undefined)
 	{	commonIndent = knownCommonIndent ?? findCommonIndent(text, options);
-		indentCol = calcLines(indent, options, 0, indent.length).nColumn - 1;
+		const {nColumn, nLine} = calcLines(indent, options, 0, indent.length);
+		indentCol = nColumn - 1;
+		indentNLines = nLine;
 	}
 	const commonIndentLen = commonIndent.length;
 	let commonIndentCol = 0;
@@ -69,31 +92,48 @@ export function indentAndWrap(text: string, options?: IndentAndWrapOptions, know
 	{	indent = '';
 	}
 	let res = '';
+	const lastChar = text.charCodeAt(text.length-1);
+	let nLines = lastChar==C_CR || lastChar==C_LF ? 1 : 0;
+	let nColumns = 0;
 	while (i < length)
 	{	const {n, endlLen, isBlankLine} = scanLine(text, i, wantWidth-minusIndent, tabWidth, commonIndentCol, indentCol, isTerm);
 		if (!isBlankLine)
-		{	res += indent + text.slice(i+skip, n-endlLen);
+		{	if (!isRect)
+			{	res += indent + text.slice(i+skip, n-endlLen);
+			}
+			else
+			{	const curNColumns = calcLines(text, options, i+skip, n-endlLen, 1, indentCol+1).nColumn - 1;
+				if (curNColumns > nColumns)
+				{	nColumns = curNColumns;
+				}
+			}
 		}
+		nLines += indentNLines;
 		i = n;
 		if (endlLen != 0)
 		{	skip = commonIndentLen;
 			minusIndent = 0;
-			res += endl;
+			if (!isRect)
+			{	res += endl;
+			}
 		}
 		else
 		{	skip = 0;
 			minusIndent = commonIndentCol;
 			if (n < length)
-			{	res += endl;
+			{	if (!isRect)
+				{	res += endl;
+				}
 				i = precedingSpaceLen(text, i, isTerm);
 			}
 		}
 	}
-	return res;
+	return {res, nLines, nColumns};
 }
 
 /**	Scan text string, and find leading space characters, that are common across all lines.
 	If `ignoreFirstIndent` is set, then the leading space on the first line is not counted, so the provided text string can be trimmed.
+	If `options.mode` is `term`, then terminal escape sequences (like VT100 color codes) can be part of indent.
 	This function uses fast algorithm that avoids splitting text to lines array.
  **/
 export function findCommonIndent(text: string, options?: FindCommonIndentOptions)
@@ -162,16 +202,17 @@ export function findCommonIndent(text: string, options?: FindCommonIndentOptions
 
 /**	Count number of lines in text string, and determine column number after the last character.
 	This function only considers text substring from `from` to `to`.
+	Lines and columns counter starts from provided values: `nLine` and `nColumn`.
+	If `options.mode` is `term`, skips terminal escape sequences (like VT100 color codes).
  **/
-export function calcLines(text: string, options?: CalcLinesOptions, from=0, to=Number.MAX_SAFE_INTEGER)
+export function calcLines(text: string, options?: CalcLinesOptions, from=0, to=Number.MAX_SAFE_INTEGER, nLine=1, nColumn=1)
 {	const tabWidth = Math.max(1, Math.min(8, options?.tabWidth || 4));
 	const isTerm = options?.mode == 'term';
 
 	if (to > text.length)
 	{	to = text.length;
 	}
-	let nLine = 1;
-	let nColumn = 0;
+	nColumn--; // to 0-based
 	for (; from<to; from++)
 	{	switch (text.charCodeAt(from))
 		{	case C_LF:
@@ -211,7 +252,8 @@ export function calcLines(text: string, options?: CalcLinesOptions, from=0, to=N
 				nColumn++;
 		}
 	}
-	return {nLine, nColumn: nColumn+1};
+	nColumn++; // to 1-based
+	return {nLine, nColumn};
 }
 
 function skipTermEscapeContinuation(text: string, i: number)

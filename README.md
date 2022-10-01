@@ -4,7 +4,7 @@ Finds and replaces common indent, and hard-wraps text. Can work on text that con
 # Example
 
 ```ts
-import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.5/mod.ts';
+import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.6/mod.ts';
 
 console.log
 (	indentAndWrap
@@ -27,6 +27,7 @@ Result:
 # Exported functions
 
 - [indentAndWrap()](#indentandwrap) - Indent or unindent and wrap text.
+- [getTextRect()](#gettextrect) - Calculate dimensions of text rectangle.
 - [findCommonIndent()](#findcommonindent) - Scan text string, and find leading space characters, that are common across all lines.
 - [calcLines()](#calclines) - Count number of lines in text string, and determine column number after the last character.
 
@@ -53,6 +54,24 @@ If `options.ignoreFirstIndent` is set, will look for common indent starting at s
 If you already know the common indent (e.g. you called `findCommonIndent()`), you can provide it as `knownCommonIndent` to save some calculation time.
 If `knownCommonIndent` doesn't match the result of `findCommonIndent()`, the behavior is undefined.
 - If `options.wrapWidth` is set, it inserts `options.endl`, so there're no lines longer than `options.wrapWidth` columns. Columns are calculated with respect to `options.tabWidth` (default 4).
+
+## getTextRect()
+
+```ts
+function getTextRect(text: string, options?: GetTextRectOptions, knownCommonIndent?: string): {nLines: number, nColumns: number};
+
+type GetTextRectOptions =
+{	indent?: string;
+	ignoreFirstIndent?: boolean;
+	wrapWidth?: number;
+	tabWidth?: number;
+	mode?: 'plain' | 'term';
+};
+```
+
+This function works the same as `indentAndWrap()`, but it doesn't return resulting text, but it returns number of lines and columns the result occupies.
+
+It only counts columns on non-blank lines.
 
 ## findCommonIndent()
 
@@ -84,8 +103,9 @@ type CalcLinesOptions =
 };
 ```
 
-Count number of lines in text string, and determine column number after the last character.
+Count number of lines in text string, and determine column number **after** the last character.
 
 This function only considers text substring from `from` to `to`.
+Lines and columns counter starts from provided values: `nLine` and `nColumn`.
 
 If `options.mode` is `term`, skips terminal escape sequences (like VT100 color codes).
