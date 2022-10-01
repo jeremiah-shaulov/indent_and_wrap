@@ -4,7 +4,7 @@ Finds and replaces common indent, and hard-wraps text. Can work on text that con
 # Example
 
 ```ts
-import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.6/mod.ts';
+import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.7/mod.ts';
 
 console.log
 (	indentAndWrap
@@ -41,6 +41,7 @@ type IndentAndWrapOptions =
 	indent?: string;
 	ignoreFirstIndent?: boolean;
 	wrapWidth?: number;
+	overflowWrap?: boolean;
 	tabWidth?: number;
 	mode?: 'plain' | 'term';
 };
@@ -54,6 +55,7 @@ If `options.ignoreFirstIndent` is set, will look for common indent starting at s
 If you already know the common indent (e.g. you called `findCommonIndent()`), you can provide it as `knownCommonIndent` to save some calculation time.
 If `knownCommonIndent` doesn't match the result of `findCommonIndent()`, the behavior is undefined.
 - If `options.wrapWidth` is set, it inserts `options.endl`, so there're no lines longer than `options.wrapWidth` columns. Columns are calculated with respect to `options.tabWidth` (default 4).
+If `options.overflowWrap` is set, can break long words, that are wider than `options.overflowWrap`.
 
 ## getTextRect()
 
@@ -64,6 +66,7 @@ type GetTextRectOptions =
 {	indent?: string;
 	ignoreFirstIndent?: boolean;
 	wrapWidth?: number;
+	overflowWrap?: boolean;
 	tabWidth?: number;
 	mode?: 'plain' | 'term';
 };

@@ -13,6 +13,16 @@ export type IndentAndWrapOptions =
 	indent?: string;
 	ignoreFirstIndent?: boolean;
 	wrapWidth?: number;
+	overflowWrap?: boolean;
+	tabWidth?: number;
+	mode?: 'plain' | 'term';
+};
+
+export type GetTextRectOptions =
+{	indent?: string;
+	ignoreFirstIndent?: boolean;
+	wrapWidth?: number;
+	overflowWrap?: boolean;
 	tabWidth?: number;
 	mode?: 'plain' | 'term';
 };
@@ -24,14 +34,6 @@ export type FindCommonIndentOptions =
 
 export type CalcLinesOptions =
 {	tabWidth?: number;
-	mode?: 'plain' | 'term';
-};
-
-export type GetTextRectOptions =
-{	indent?: string;
-	ignoreFirstIndent?: boolean;
-	wrapWidth?: number;
-	tabWidth?: number;
 	mode?: 'plain' | 'term';
 };
 
@@ -60,6 +62,7 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 {	let indent = options?.indent;
 	const ignoreFirstIndent = options?.ignoreFirstIndent || false;
 	const wrapWidth = options?.wrapWidth || Number.MAX_SAFE_INTEGER;
+	const overflowWrap = options?.overflowWrap || false;
 	const tabWidth = Math.max(1, Math.min(16, options?.tabWidth || 4));
 	const endl = options?.endl || '\n';
 	const isTerm = options?.mode == 'term';
@@ -96,7 +99,7 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 	let nLines = lastChar==C_CR || lastChar==C_LF ? 1 : 0;
 	let nColumns = 0;
 	while (i < length)
-	{	const {n, endlLen, isBlankLine} = scanLine(text, i, wantWidth-minusIndent, tabWidth, commonIndentCol, indentCol, isTerm);
+	{	const {n, endlLen, isBlankLine} = scanLine(text, i, wantWidth-minusIndent, overflowWrap, tabWidth, commonIndentCol, indentCol, isTerm);
 		if (!isBlankLine)
 		{	if (!isRect)
 			{	res += indent + text.slice(i+skip, n-endlLen);
@@ -290,7 +293,7 @@ function precedingSpaceLen(text: string, i: number, isTerm: boolean)
 
 /**	Returns position where next line begins, and length of line-break characters at the end of the skipped line.
  **/
-function scanLine(text: string, i: number, wrapWidth: number, tabWidth: number, removeIndentCol: number, addIndentCol: number, isTerm: boolean)
+function scanLine(text: string, i: number, wrapWidth: number, overflowWrap: boolean, tabWidth: number, removeIndentCol: number, addIndentCol: number, isTerm: boolean)
 {	const {length} = text;
 	let col = 0;
 	let wordEnd = 0;
@@ -333,7 +336,7 @@ function scanLine(text: string, i: number, wrapWidth: number, tabWidth: number, 
 				break;
 
 
-			case C_BEL: // deno-lint-ignore no-fallthrough
+			case C_BEL:
 			case C_ESC:
 				if (isTerm)
 				{	if (c == C_BEL)
@@ -345,11 +348,14 @@ function scanLine(text: string, i: number, wrapWidth: number, tabWidth: number, 
 						continue;
 					}
 				}
+				// fallthrough
 
 			default:
 				col++;
 				if (col > wrapWidth)
-				{	return {n: wordEnd || i, endlLen: 0, isBlankLine: wordEnd==0 && prevIsSpace};
+				{	if (wordEnd || overflowWrap)
+					{	return {n: wordEnd || i, endlLen: 0, isBlankLine: wordEnd==0 && prevIsSpace};
+					}
 				}
 				prevIsSpace = false;
 		}

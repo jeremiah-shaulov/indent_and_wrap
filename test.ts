@@ -395,7 +395,71 @@ Deno.test
 			(	'\n Line 1\n    \n Line 2222\n',
 				{indent: '****', wrapWidth: 7}
 			),
+			'\n****Line\n****1\n\n****Line\n****2222\n'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'\n Line 1\n    \n Line 2222\n',
+				{indent: '****', wrapWidth: 7, overflowWrap: true}
+			),
 			'\n****Lin\n****e 1\n\n****Lin\n****e\n****222\n****2\n'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcdefghi',
+				{wrapWidth: 3, overflowWrap: true}
+			),
+			'abc\ndef\nghi'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcdefghi\n',
+				{wrapWidth: 3, overflowWrap: true}
+			),
+			'abc\ndef\nghi\n'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcdefghi\nab cdef',
+				{wrapWidth: 3, overflowWrap: true}
+			),
+			'abc\ndef\nghi\nab\ncde\nf'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcdefghi\n',
+				{indent: '  ', wrapWidth: 3, overflowWrap: true}
+			),
+			'  a\n  b\n  c\n  d\n  e\n  f\n  g\n  h\n  i\n'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcdefghi\n',
+				{indent: '   ', wrapWidth: 3, overflowWrap: true}
+			),
+			'   a\n   b\n   c\n   d\n   e\n   f\n   g\n   h\n   i\n'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'ab\tcde',
+				{wrapWidth: 3, overflowWrap: true}
+			),
+			'ab\ncde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'ab\tcde',
+				{indent: '   ', wrapWidth: 3, overflowWrap: true}
+			),
+			'   a\n   b\n   c\n   d\n   e'
 		);
 
 		assertEquals
