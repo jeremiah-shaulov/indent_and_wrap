@@ -685,5 +685,179 @@ Deno.test
 			),
 			{nLines: 5, nColumns: 10}
 		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'\tabcde',
+				{tabsToSpaces: true}
+			),
+			'    abcde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'a\tbcde',
+				{tabsToSpaces: true}
+			),
+			'a   bcde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'a\tbcde',
+				{tabsToSpaces: false}
+			),
+			'a\tbcde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'ab\tcde',
+				{tabsToSpaces: true}
+			),
+			'ab  cde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abc\tde',
+				{tabsToSpaces: true}
+			),
+			'abc de'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcd\te',
+				{tabsToSpaces: true}
+			),
+			'abcd    e'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'a\tb\tcde',
+				{tabsToSpaces: true}
+			),
+			'a   b   cde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'a\tb \tcde',
+				{tabsToSpaces: true}
+			),
+			'a   b   cde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'a\tb \t cde',
+				{tabsToSpaces: true}
+			),
+			'a   b    cde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'a\tb \t\ncde',
+				{tabsToSpaces: true}
+			),
+			'a   b\ncde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'a\tb\t \ncde',
+				{tabsToSpaces: true}
+			),
+			'a   b\ncde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'a\tb\ncd\te\nf',
+				{tabsToSpaces: true}
+			),
+			'a   b\ncd  e\nf'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'a\tb\ncd\te\nf',
+				{indent: ' ', tabsToSpaces: true}
+			),
+			' a  b\n cd e\n f'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcde\n \nf'
+			),
+			'abcde\n\nf'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcde\n \t \nf'
+			),
+			'abcde\n\nf'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcde\n \t \nf',
+				{tabsToSpaces: true}
+			),
+			'abcde\n\nf'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcde\t',
+				{tabsToSpaces: true}
+			),
+			'abcde'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcde\t\n',
+				{tabsToSpaces: true}
+			),
+			'abcde\n'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcde\t\r',
+				{tabsToSpaces: true}
+			),
+			'abcde\n'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'abcde\t\r\n',
+				{tabsToSpaces: true}
+			),
+			'abcde\n'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'ab cde\t\n',
+				{tabsToSpaces: true}
+			),
+			'ab cde\n'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'ab cd e \nf',
+				{wrapWidth: 8}
+			),
+			'ab cd e\nf'
+		);
 	}
 );

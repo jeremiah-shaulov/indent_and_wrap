@@ -1,3 +1,5 @@
+const IS_TAB = -1;
+
 const C_SPACE = ' '.charCodeAt(0);
 const C_TAB = '\t'.charCodeAt(0);
 const C_CR = '\r'.charCodeAt(0);
@@ -15,6 +17,7 @@ export type IndentAndWrapOptions =
 	wrapWidth?: number;
 	overflowWrap?: boolean;
 	tabWidth?: number;
+	tabsToSpaces?: boolean;
 	mode?: 'plain' | 'term';
 };
 
@@ -36,6 +39,12 @@ export type CalcLinesOptions =
 {	tabWidth?: number;
 	mode?: 'plain' | 'term';
 };
+
+const enum State
+{	ENDL,
+	WANT_ENDL,
+	MID_LINE_OR_EOF,
+}
 
 /**	This function does:
 	- Replaces new line characters (`\n`, `\r\n` or `\r`) to `options.endl`, or if it's not set to `\n`.
@@ -64,6 +73,7 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 	const wrapWidth = options?.wrapWidth || Number.MAX_SAFE_INTEGER;
 	const overflowWrap = options?.overflowWrap || false;
 	const tabWidth = Math.max(1, Math.min(16, options?.tabWidth || 4));
+	const tabsToSpaces = options?.tabsToSpaces || false;
 	const endl = options?.endl || '\n';
 	const isTerm = options?.mode == 'term';
 	
@@ -98,22 +108,27 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 	const lastChar = text.charCodeAt(text.length-1);
 	let nLines = lastChar==C_CR || lastChar==C_LF ? 1 : 0;
 	let nColumns = 0;
+	let nColumn = 0;
 	while (i < length)
-	{	const {n, endlLen, isBlankLine} = scanLine(text, i, wantWidth-minusIndent, overflowWrap, tabWidth, commonIndentCol, indentCol, isTerm);
-		if (!isBlankLine)
-		{	if (!isRect)
-			{	res += indent + text.slice(i+skip, n-endlLen);
-			}
-			else
-			{	const curNColumns = calcLines(text, options, i+skip, n-endlLen, 1, indentCol+1).nColumn - 1;
+	{	const {n, nextN, nextCol, state, tabPos, tabEndPos, tabLen} = scanLine(text, i, nColumn, wantWidth-minusIndent, overflowWrap, tabWidth, tabsToSpaces, commonIndentCol, indentCol, isTerm);
+		nColumn = nextCol;
+		if (n > i+skip)
+		{	if (isRect)
+			{	const curNColumns = calcLines(text, options, i+skip, n, 1, indentCol+1).nColumn - 1;
 				if (curNColumns > nColumns)
 				{	nColumns = curNColumns;
 				}
 			}
+			else if (tabEndPos == -1)
+			{	res += indent + text.slice(i+skip, n);
+			}
+			else
+			{	res += indent + text.slice(i+skip, tabPos) + ' '.repeat(tabLen) + text.slice(tabEndPos, n);
+			}
 		}
 		nLines += indentNLines;
-		i = n;
-		if (endlLen != 0)
+		i = nextN;
+		if (state == State.ENDL)
 		{	skip = commonIndentLen;
 			minusIndent = 0;
 			if (!isRect)
@@ -123,7 +138,7 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 		else
 		{	skip = 0;
 			minusIndent = commonIndentCol;
-			if (n < length)
+			if (state == State.WANT_ENDL)
 			{	if (!isRect)
 				{	res += endl;
 				}
@@ -293,46 +308,84 @@ function precedingSpaceLen(text: string, i: number, isTerm: boolean)
 
 /**	Returns position where next line begins, and length of line-break characters at the end of the skipped line.
  **/
-function scanLine(text: string, i: number, wrapWidth: number, overflowWrap: boolean, tabWidth: number, removeIndentCol: number, addIndentCol: number, isTerm: boolean)
+function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, overflowWrap: boolean, tabWidth: number, tabsToSpaces: boolean, removeIndentCol: number, addIndentCol: number, isTerm: boolean)
 {	const {length} = text;
-	let col = 0;
 	let wordEnd = 0;
 	let prevIsSpace = true;
+	let tabPos = tabsToSpaces ? -1 : -2; // -2: no count; -1: no TAB occured yet; >=0: tab occured, but no next nonspace occured
+	let tabCol = 0;
+	let tabEndPos = -1;
+	let tabEndCol = 0;
+	let nextCol = 0;
+	if (tabsToSpaces && wrapWidth==Number.MAX_SAFE_INTEGER)
+	{	wrapWidth--; // columns are not counted when wrapWidth == Number.MAX_SAFE_INTEGER
+	}
 	for (; i<length; i++)
 	{	const c = text.charCodeAt(i);
 		switch (c)
 		{	case C_LF:
-				return {n: i+1, endlLen: 1, isBlankLine: wordEnd==0 && prevIsSpace};
+				if (prevIsSpace)
+				{	// trimEnd
+					return {n: wordEnd, nextN: i+1, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+				}
+				return {n: i, nextN: i+1, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 
 			case C_CR:
-				i++;
-				if (i>=length || text.charCodeAt(i)!=C_LF)
-				{	return {n: i, endlLen: 1, isBlankLine: wordEnd==0 && prevIsSpace};
+				if (i+1>=length || text.charCodeAt(i+1)!=C_LF)
+				{	if (prevIsSpace)
+					{	// trimEnd
+						return {n: wordEnd, nextN: i+1, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+					}
+					return {n: i, nextN: i+1, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 				}
-				return {n: i+1, endlLen: 2, isBlankLine: wordEnd==0 && prevIsSpace};
+				if (prevIsSpace)
+				{	// trimEnd
+					return {n: wordEnd, nextN: i+2, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+				}
+				return {n: i, nextN: i+2, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 
 			case C_TAB:
-				if (!prevIsSpace)
-				{	wordEnd = i;
+				if (tabPos == -1)
+				{	// TAB occured for the first time
+					tabPos = i;
+					tabCol = nColumn;
 				}
 				if (wrapWidth != Number.MAX_SAFE_INTEGER)
-				{	col += tabWidth - (col<=removeIndentCol ? col : col-removeIndentCol+addIndentCol)%tabWidth;
-					if (col > wrapWidth)
-					{	return {n: wordEnd || i, endlLen: 0, isBlankLine: wordEnd==0 && prevIsSpace};
+				{	nextCol = nColumn;
+					nColumn += tabWidth - (nColumn<=removeIndentCol ? nColumn : nColumn-removeIndentCol+addIndentCol)%tabWidth;
+					if (nColumn > wrapWidth)
+					{	if (!prevIsSpace)
+						{	wordEnd = i;
+						}
+						return {n: wordEnd || i, nextN: i, nextCol: 0, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 					}
 				}
-				prevIsSpace = true;
+				if (!prevIsSpace)
+				{	if (tabEndPos != -1)
+					{	// current TAB is after spaces containing TAB and nonspaces
+						return {n: i, nextN: i, nextCol, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+					}
+					wordEnd = i;
+					prevIsSpace = true;
+				}
 				break;
 
 			case C_SPACE:
+				nColumn++;
+				if (nColumn > wrapWidth)
+				{	if (!prevIsSpace)
+					{	wordEnd = i;
+					}
+					return {n: wordEnd || i, nextN: i, nextCol: 0, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+				}
 				if (!prevIsSpace)
-				{	wordEnd = i;
+				{	if (tabEndPos != -1)
+					{	// current space is after spaces containing TAB and nonspaces
+						return {n: i, nextN: i, nextCol: nColumn-1, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+					}
+					wordEnd = i;
+					prevIsSpace = true;
 				}
-				col++;
-				if (col > wrapWidth)
-				{	return {n: wordEnd || i, endlLen: 0, isBlankLine: wordEnd==0 && prevIsSpace};
-				}
-				prevIsSpace = true;
 				break;
 
 
@@ -351,14 +404,26 @@ function scanLine(text: string, i: number, wrapWidth: number, overflowWrap: bool
 				// fallthrough
 
 			default:
-				col++;
-				if (col > wrapWidth)
+				nColumn++;
+				if (nColumn > wrapWidth)
 				{	if (wordEnd || overflowWrap)
-					{	return {n: wordEnd || i, endlLen: 0, isBlankLine: wordEnd==0 && prevIsSpace};
+					{	const n = wordEnd || i;
+						return {n, nextN: n, nextCol: 0, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 					}
 				}
-				prevIsSpace = false;
+				if (prevIsSpace)
+				{	prevIsSpace = false;
+					if (tabPos >= 0)
+					{	// nonspace occured after spaces containing TAB
+						tabEndPos = i;
+						tabEndCol = nColumn - 1;
+					}
+				}
 		}
 	}
-	return {n: length, endlLen: 0, isBlankLine: wordEnd==0 && prevIsSpace};
+	if (prevIsSpace)
+	{	// trimEnd
+		return {n: wordEnd, nextN: length, nextCol: 0, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+	}
+	return {n: length, nextN: length, nextCol: 0, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 }
