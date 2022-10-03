@@ -607,6 +607,20 @@ Deno.test
 				`  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n`
 			);
 		}
+
+		for (let i=0; i<30; i++)
+		{	const esc1 = i==0 ? '' : esc();
+			assertEquals
+			(	indentAndWrap
+				(	` \t  L${esc1}orem ipsum dolor sit amet, consectetur
+					 \t  adipiscing${esc1} elit, sed do eiusmod tempor incididunt ut labore et
+					 \t  dolore magna aliqua.${esc1}
+					`,
+					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, mode: 'term'}
+				),
+				`  L${esc1}orem ipsum dolor sit amet, consectetur\n  adipiscing${esc1} elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.${esc1}\n`
+			);
+		}
 	}
 );
 
