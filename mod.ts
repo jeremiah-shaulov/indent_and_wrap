@@ -70,7 +70,7 @@ export function getTextRect(text: string, options?: GetTextRectOptions, knownCom
 function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string)
 {	let indent = options?.indent;
 	const ignoreFirstIndent = options?.ignoreFirstIndent || false;
-	const wrapWidth = options?.wrapWidth || Number.MAX_SAFE_INTEGER;
+	let wrapWidth = options?.wrapWidth || Number.MAX_SAFE_INTEGER;
 	const overflowWrap = options?.overflowWrap || false;
 	const tabWidth = Math.max(1, Math.min(16, options?.tabWidth || 4));
 	const tabsToSpaces = options?.tabsToSpaces || false;
@@ -84,22 +84,27 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 	{	commonIndent = knownCommonIndent ?? findCommonIndent(text, options);
 		const {nColumn, nLine} = calcLines(indent, options, 0, indent.length);
 		indentCol = nColumn - 1;
+		if (indentCol >= wrapWidth)
+		{	wrapWidth = indentCol + 1;
+		}
 		indentNLines = nLine;
 	}
 	const commonIndentLen = commonIndent.length;
-	let commonIndentCol = 0;
-	let wantWidth = Number.MAX_SAFE_INTEGER;
-	if (wrapWidth != Number.MAX_SAFE_INTEGER)
-	{	commonIndentCol = calcLines(commonIndent, options, 0, commonIndent.length).nColumn - 1;
-		wantWidth = Math.max(1, wrapWidth - indentCol + commonIndentCol);
-	}
 	const {length} = text;
 	let i = 0;
-	let skip = commonIndentLen;
-	let minusIndent = 0;
-	if (ignoreFirstIndent && indent!=undefined)
-	{	skip = precedingSpaceLen(text, 0, isTerm);
-		minusIndent = commonIndentCol - (calcLines(text, options, 0, skip).nColumn - 1);
+	let nColumn = 0;
+	if (ignoreFirstIndent)
+	{	if (indent != undefined)
+		{	i = precedingSpaceLen(text, 0, isTerm);
+			nColumn = indentCol;
+		}
+	}
+	else
+	{	const firstChar = text.charCodeAt(0);
+		if (firstChar!=C_CR && firstChar!=C_LF)
+		{	i = commonIndentLen;
+			nColumn = indentCol;
+		}
 	}
 	if (indent == undefined)
 	{	indent = '';
@@ -108,41 +113,41 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 	const lastChar = text.charCodeAt(text.length-1);
 	let nLines = lastChar==C_CR || lastChar==C_LF ? 1 : 0;
 	let nColumns = 0;
-	let nColumn = 0;
 	while (i < length)
-	{	const {n, nextN, nextCol, state, tabPos, tabEndPos, tabLen} = scanLine(text, i, nColumn, wantWidth-minusIndent, overflowWrap, tabWidth, tabsToSpaces, commonIndentCol, indentCol, isTerm);
-		nColumn = nextCol;
-		if (n > i+skip)
+	{	const {n, nextN, nextCol, state, tabPos, tabEndPos, tabLen} = scanLine(text, i, nColumn, wrapWidth, overflowWrap, tabWidth, tabsToSpaces, indentCol, isTerm);
+		if (n > i)
 		{	if (isRect)
-			{	const curNColumns = calcLines(text, options, i+skip, n, 1, indentCol+1).nColumn - 1;
-				if (curNColumns > nColumns)
-				{	nColumns = curNColumns;
+			{	if (nextCol > nColumns)
+				{	nColumns = nextCol;
 				}
 			}
 			else if (tabEndPos == -1)
-			{	res += indent + text.slice(i+skip, n);
+			{	res += indent + text.slice(i, n);
 			}
 			else
-			{	res += indent + text.slice(i+skip, tabPos) + ' '.repeat(tabLen) + text.slice(tabEndPos, n);
+			{	res += indent + text.slice(i, tabPos) + ' '.repeat(tabLen) + text.slice(tabEndPos, n);
 			}
 		}
 		nLines += indentNLines;
 		i = nextN;
 		if (state == State.ENDL)
-		{	skip = commonIndentLen;
-			minusIndent = 0;
+		{	nColumn = 0;
+			const c = text.charCodeAt(i);
+			if (c!=C_CR && c!=C_LF)
+			{	i += commonIndentLen;
+				nColumn = indentCol;
+			}
 			if (!isRect)
 			{	res += endl;
 			}
 		}
 		else
-		{	skip = 0;
-			minusIndent = commonIndentCol;
+		{	nColumn = nextCol;
 			if (state == State.WANT_ENDL)
-			{	if (!isRect)
+			{	nColumn = indentCol;
+				if (!isRect)
 				{	res += endl;
 				}
-				i = precedingSpaceLen(text, i, isTerm);
 			}
 		}
 	}
@@ -308,15 +313,16 @@ function precedingSpaceLen(text: string, i: number, isTerm: boolean)
 
 /**	Returns position where next line begins, and length of line-break characters at the end of the skipped line.
  **/
-function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, overflowWrap: boolean, tabWidth: number, tabsToSpaces: boolean, removeIndentCol: number, addIndentCol: number, isTerm: boolean)
+function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, overflowWrap: boolean, tabWidth: number, tabsToSpaces: boolean, addIndentCol: number, isTerm: boolean)
 {	const {length} = text;
+	let wordStart = 0;
 	let wordEnd = 0;
+	let wordEndCol = 0;
 	let prevIsSpace = true;
 	let tabPos = tabsToSpaces ? -1 : -2; // -2: no count; -1: no TAB occured yet; >=0: tab occured, but no next nonspace occured
 	let tabCol = 0;
 	let tabEndPos = -1;
 	let tabEndCol = 0;
-	let nextCol = 0;
 	if (tabsToSpaces && wrapWidth==Number.MAX_SAFE_INTEGER)
 	{	wrapWidth--; // columns are not counted when wrapWidth == Number.MAX_SAFE_INTEGER
 	}
@@ -324,25 +330,21 @@ function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, o
 	{	const c = text.charCodeAt(i);
 		switch (c)
 		{	case C_LF:
-				if (prevIsSpace)
-				{	// trimEnd
-					return {n: wordEnd, nextN: i+1, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+				if (!prevIsSpace)
+				{	wordEnd = i;
+					wordEndCol = nColumn;
 				}
-				return {n: i, nextN: i+1, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+				return {n: wordEnd, nextN: i+1, nextCol: wordEndCol, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 
 			case C_CR:
+				if (!prevIsSpace)
+				{	wordEnd = i;
+					wordEndCol = nColumn;
+				}
 				if (i+1>=length || text.charCodeAt(i+1)!=C_LF)
-				{	if (prevIsSpace)
-					{	// trimEnd
-						return {n: wordEnd, nextN: i+1, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
-					}
-					return {n: i, nextN: i+1, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+				{	return {n: wordEnd, nextN: i+1, nextCol: wordEndCol, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 				}
-				if (prevIsSpace)
-				{	// trimEnd
-					return {n: wordEnd, nextN: i+2, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
-				}
-				return {n: i, nextN: i+2, nextCol: 0, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+				return {n: wordEnd, nextN: i+2, nextCol: wordEndCol, state: State.ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 
 			case C_TAB:
 				if (tabPos == -1)
@@ -350,42 +352,31 @@ function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, o
 					tabPos = i;
 					tabCol = nColumn;
 				}
-				if (wrapWidth != Number.MAX_SAFE_INTEGER)
-				{	nextCol = nColumn;
-					nColumn += tabWidth - (nColumn<=removeIndentCol ? nColumn : nColumn-removeIndentCol+addIndentCol)%tabWidth;
-					if (nColumn > wrapWidth)
-					{	if (!prevIsSpace)
-						{	wordEnd = i;
-						}
-						return {n: wordEnd || i, nextN: i, nextCol: 0, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
-					}
-				}
 				if (!prevIsSpace)
-				{	if (tabEndPos != -1)
+				{	wordEnd = i;
+					wordEndCol = nColumn;
+					if (tabEndPos != -1)
 					{	// current TAB is after spaces containing TAB and nonspaces
-						return {n: i, nextN: i, nextCol, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+						return {n: wordEnd, nextN: i, nextCol: wordEndCol, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 					}
-					wordEnd = i;
 					prevIsSpace = true;
+				}
+				if (wrapWidth != Number.MAX_SAFE_INTEGER)
+				{	nColumn += tabWidth - nColumn%tabWidth;
 				}
 				break;
 
 			case C_SPACE:
-				nColumn++;
-				if (nColumn > wrapWidth)
-				{	if (!prevIsSpace)
-					{	wordEnd = i;
-					}
-					return {n: wordEnd || i, nextN: i, nextCol: 0, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
-				}
 				if (!prevIsSpace)
-				{	if (tabEndPos != -1)
+				{	wordEnd = i;
+					wordEndCol = nColumn;
+					if (tabEndPos != -1)
 					{	// current space is after spaces containing TAB and nonspaces
-						return {n: i, nextN: i, nextCol: nColumn-1, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+						return {n: wordEnd, nextN: i, nextCol: wordEndCol, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 					}
-					wordEnd = i;
 					prevIsSpace = true;
 				}
+				nColumn++;
 				break;
 
 
@@ -404,26 +395,32 @@ function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, o
 				// fallthrough
 
 			default:
-				nColumn++;
-				if (nColumn > wrapWidth)
-				{	if (wordEnd || overflowWrap)
-					{	const n = wordEnd || i;
-						return {n, nextN: n, nextCol: 0, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+				if (nColumn >= wrapWidth)
+				{	if (prevIsSpace)
+					{	return {n: wordEnd, nextN: i, nextCol: wordEndCol, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+					}
+					if (wordEnd)
+					{	return {n: wordEnd, nextN: wordStart, nextCol: wordEndCol, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+					}
+					if (overflowWrap)
+					{	return {n: i, nextN: i, nextCol: nColumn, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 					}
 				}
 				if (prevIsSpace)
 				{	prevIsSpace = false;
+					wordStart = i;
 					if (tabPos >= 0)
 					{	// nonspace occured after spaces containing TAB
 						tabEndPos = i;
-						tabEndCol = nColumn - 1;
+						tabEndCol = nColumn;
 					}
 				}
+				nColumn++;
 		}
 	}
-	if (prevIsSpace)
-	{	// trimEnd
-		return {n: wordEnd, nextN: length, nextCol: 0, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+	if (!prevIsSpace)
+	{	wordEnd = i;
+		wordEndCol = nColumn;
 	}
-	return {n: length, nextN: length, nextCol: 0, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
+	return {n: wordEnd, nextN: i, nextCol: wordEndCol, state: State.MID_LINE_OR_EOF, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 }
