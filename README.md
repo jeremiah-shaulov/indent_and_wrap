@@ -43,6 +43,7 @@ type IndentAndWrapOptions =
 	wrapWidth?: number;
 	overflowWrap?: boolean;
 	tabWidth?: number;
+	tabsToSpaces?: boolean;
 	mode?: 'plain' | 'term';
 };
 ```
@@ -57,6 +58,7 @@ If you already know the common indent (e.g. you called `findCommonIndent()`), yo
 If `knownCommonIndent` doesn't match the result of `findCommonIndent()`, the behavior is undefined.
 - If `options.wrapWidth` is set, it inserts `options.endl`, so there're no lines longer than `options.wrapWidth` columns. Columns are calculated with respect to `options.tabWidth` (default 4).
 If `options.overflowWrap` is set, can break long words, that are wider than `options.overflowWrap`.
+- If `options.tabsToSpaces` is set, converts tabs to spaces.
 
 ## getTextRect()
 
