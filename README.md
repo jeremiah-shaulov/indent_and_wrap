@@ -49,6 +49,7 @@ type IndentAndWrapOptions =
 
 This function does:
 - Replaces new line characters (`\n`, `\r\n` or `\r`) to `options.endl`, or if it's not set to `\n`.
+- Removes white space at the end of each line.
 - If `options.indent` is set, it determines common indent characters across all lines, and replaces them with `options.indent` string.
 This can lead to indent increase or decrease.
 If `options.ignoreFirstIndent` is set, will look for common indent starting at second line, so the text can be trimmed.

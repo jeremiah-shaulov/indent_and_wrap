@@ -859,5 +859,21 @@ Deno.test
 			),
 			'ab cd e\nf'
 		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'ab cd e  \nf',
+				{wrapWidth: 8}
+			),
+			'ab cd e\nf'
+		);
+
+		assertEquals
+		(	indentAndWrap
+			(	'\tabcde',
+				{indent: '', tabsToSpaces: true}
+			),
+			'abcde'
+		);
 	}
 );
