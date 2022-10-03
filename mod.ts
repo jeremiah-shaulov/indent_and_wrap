@@ -1,5 +1,3 @@
-const IS_TAB = -1;
-
 const C_SPACE = ' '.charCodeAt(0);
 const C_TAB = '\t'.charCodeAt(0);
 const C_CR = '\r'.charCodeAt(0);
@@ -70,12 +68,12 @@ export function getTextRect(text: string, options?: GetTextRectOptions, knownCom
 function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string)
 {	let indent = options?.indent;
 	const ignoreFirstIndent = options?.ignoreFirstIndent || false;
-	let wrapWidth = options?.wrapWidth || Number.MAX_SAFE_INTEGER;
 	const overflowWrap = options?.overflowWrap || false;
 	const tabWidth = Math.max(1, Math.min(16, options?.tabWidth || 4));
 	const tabsToSpaces = options?.tabsToSpaces || false;
 	const endl = options?.endl || '\n';
 	const isTerm = options?.mode == 'term';
+	let wrapWidth = options?.wrapWidth || (isRect || tabsToSpaces ? Number.MAX_SAFE_INTEGER-1 : Number.MAX_SAFE_INTEGER); // columns are not counted when wrapWidth == Number.MAX_SAFE_INTEGER
 	
 	let commonIndent = '';
 	let indentCol = 0;
@@ -114,7 +112,7 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 	let nLines = lastChar==C_CR || lastChar==C_LF ? 1 : 0;
 	let nColumns = 0;
 	while (i < length)
-	{	const {n, nextN, nextCol, state, tabPos, tabEndPos, tabLen} = scanLine(text, i, nColumn, wrapWidth, overflowWrap, tabWidth, tabsToSpaces, indentCol, isTerm);
+	{	const {n, nextN, nextCol, state, tabPos, tabEndPos, tabLen} = scanLine(text, i, nColumn, wrapWidth, overflowWrap, tabWidth, tabsToSpaces, isTerm);
 		if (n > i)
 		{	if (isRect)
 			{	if (nextCol > nColumns)
@@ -313,7 +311,7 @@ function precedingSpaceLen(text: string, i: number, isTerm: boolean)
 
 /**	Returns position where next line begins, and length of line-break characters at the end of the skipped line.
  **/
-function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, overflowWrap: boolean, tabWidth: number, tabsToSpaces: boolean, addIndentCol: number, isTerm: boolean)
+function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, overflowWrap: boolean, tabWidth: number, tabsToSpaces: boolean, isTerm: boolean)
 {	const {length} = text;
 	let wordStart = 0;
 	let wordEnd = 0;
@@ -323,9 +321,6 @@ function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, o
 	let tabCol = 0;
 	let tabEndPos = -1;
 	let tabEndCol = 0;
-	if (tabsToSpaces && wrapWidth==Number.MAX_SAFE_INTEGER)
-	{	wrapWidth--; // columns are not counted when wrapWidth == Number.MAX_SAFE_INTEGER
-	}
 	for (; i<length; i++)
 	{	const c = text.charCodeAt(i);
 		switch (c)
