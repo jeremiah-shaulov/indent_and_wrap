@@ -1,10 +1,13 @@
 # indent_and_wrap: Text utility for Deno
-Finds and replaces common indent, and hard-wraps text. Can work on text that contains terminal escape sequences.
+Finds and replaces common indent, hard-wraps text, and generates text tables.
+Can work on text that contains terminal escape sequences.
 
 # Example
 
+**Indent**
+
 ```ts
-import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.9/mod.ts';
+import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.10/mod.ts';
 
 console.log
 (	indentAndWrap
@@ -24,12 +27,50 @@ Result:
         et dolore magna aliqua.
 ```
 
+**Text table**
+
+```ts
+import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.10/mod.ts';
+
+console.log
+(	textTable
+	(	[	[	{	text: 'Lorem ipsum',
+				},
+				{	text: 'dolor sit amet,\nconsectetur adipiscing elit,\nsed do',
+					options: {paddingLeft: 2, paddingRight: 1, nowrap: true},
+				}
+			],
+			[	{	text: 'eiusmod',
+				},
+				{	text: 'tempor',
+					options: {textAlign: TextAlign.Center},
+				}
+			]
+		],
+		{borderStyle: BorderStyle.Double, borderColor: 0xDDDDDD}
+	)
+);
+```
+
+Result:
+
+```
+╔═══════════╦═══════════════════════════════╗
+║           ║  dolor sit amet,              ║
+║Lorem ipsum║  consectetur adipiscing elit, ║
+║           ║  sed do                       ║
+╠═══════════╬═══════════════════════════════╣
+║eiusmod    ║            tempor             ║
+╚═══════════╩═══════════════════════════════╝
+```
+
 # Exported functions
 
 - [indentAndWrap()](#indentandwrap) - Indent or unindent and wrap text.
 - [getTextRect()](#gettextrect) - Calculate dimensions of text rectangle.
 - [findCommonIndent()](#findcommonindent) - Scan text string, and find leading space characters, that are common across all lines.
 - [calcLines()](#calclines) - Count number of lines in text string, and determine column number after the last character.
+- [textTable()](#texttable) - Generate text table.
 
 ## indentAndWrap()
 
@@ -115,3 +156,59 @@ This function only considers text substring from `from` to `to`.
 Lines and columns counter starts from provided values: `nLine` and `nColumn`.
 
 If `options.mode` is `term`, skips terminal escape sequences (like VT100 color codes).
+
+## textTable()
+
+```ts
+function textTable(rows: Cell[][], options?: TextTableOptions, nColumn=0): string;
+
+type Cell =
+{	text: string;
+	options?: CellOptions;
+};
+
+type TextTableOptions =
+{	minWidth?: number;
+	maxWidth?: number;
+	borderStyle?: BorderStyle;
+	borderColor?: number | {r: number, g: number, b: number};
+
+	endl?: string;
+	tabWidth?: number;
+	tabsToSpaces?: boolean;
+	mode?: 'plain' | 'term';
+};
+
+type CellOptions =
+{	textAlign?: TextAlign;
+	verticalAlign?: VerticalAlign;
+	nowrap?: boolean;
+	minWidth?: number;
+	maxWidth?: number;
+	minHeight?: number;
+	paddingTop?: number;
+	paddingRight?: number;
+	paddingBottom?: number;
+	paddingLeft?: number;
+};
+
+const enum BorderStyle
+{	None,
+	Solid,
+	Double,
+}
+
+const enum TextAlign
+{	Left,
+	Right,
+	Center,
+}
+
+const enum VerticalAlign
+{	Top,
+	Middle,
+	Bottom,
+}
+```
+
+Generates text table.
