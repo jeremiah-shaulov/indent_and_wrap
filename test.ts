@@ -1,4 +1,4 @@
-import {calcLines, indentAndWrap, getTextRect, CalcLinesOptions} from './mod.ts';
+import {calcLines, indentAndWrap, getTextRect, CalcLinesOptions, textTable, BorderStyle} from './mod.ts';
 import {assertEquals} from "https://deno.land/std@0.157.0/testing/asserts.ts";
 
 const ESCAPES =
@@ -39,7 +39,7 @@ Deno.test
 	{	for (let state=0; state<1000; state++)
 		{	assertEquals
 			(	calcLines
-				(	insertTermEscapes('', state), 
+				(	insertTermEscapes('', state),
 					calcLinesStateToMode(state)
 				),
 				{nLine: 1, nColumn: 1}
@@ -47,7 +47,7 @@ Deno.test
 
 			assertEquals
 			(	calcLines
-				(	insertTermEscapes(' ', state), 
+				(	insertTermEscapes(' ', state),
 					calcLinesStateToMode(state)
 				),
 				{nLine: 1, nColumn: 2}
@@ -55,39 +55,7 @@ Deno.test
 
 			assertEquals
 			(	calcLines
-				(	insertTermEscapes('\t', state), 
-					calcLinesStateToMode(state)
-				),
-				{nLine: 1, nColumn: 5}
-			);
-
-			assertEquals
-			(	calcLines
-				(	insertTermEscapes('a\t', state), 
-					calcLinesStateToMode(state)
-				),
-				{nLine: 1, nColumn: 5}
-			);
-
-			assertEquals
-			(	calcLines
-				(	insertTermEscapes('ab\t', state), 
-					calcLinesStateToMode(state)
-				),
-				{nLine: 1, nColumn: 5}
-			);
-
-			assertEquals
-			(	calcLines
-				(	insertTermEscapes('abc\t', state), 
-					calcLinesStateToMode(state)
-				),
-				{nLine: 1, nColumn: 5}
-			);
-
-			assertEquals
-			(	calcLines
-				(	insertTermEscapes('abcde\t', state), 
+				(	insertTermEscapes('\t', state),
 					calcLinesStateToMode(state)
 				),
 				{nLine: 1, nColumn: 9}
@@ -95,7 +63,39 @@ Deno.test
 
 			assertEquals
 			(	calcLines
-				(	insertTermEscapes('abcde\t', state), 
+				(	insertTermEscapes('a\t', state),
+					calcLinesStateToMode(state)
+				),
+				{nLine: 1, nColumn: 9}
+			);
+
+			assertEquals
+			(	calcLines
+				(	insertTermEscapes('ab\t', state),
+					calcLinesStateToMode(state)
+				),
+				{nLine: 1, nColumn: 9}
+			);
+
+			assertEquals
+			(	calcLines
+				(	insertTermEscapes('abcdefg\t', state),
+					calcLinesStateToMode(state)
+				),
+				{nLine: 1, nColumn: 9}
+			);
+
+			assertEquals
+			(	calcLines
+				(	insertTermEscapes('abcdefgh\t', state),
+					calcLinesStateToMode(state)
+				),
+				{nLine: 1, nColumn: 17}
+			);
+
+			assertEquals
+			(	calcLines
+				(	insertTermEscapes('abcde\t', state),
 					calcLinesStateToMode(state, {tabWidth: 5}),
 					0,
 					100
@@ -116,7 +116,7 @@ Deno.test
 			assertEquals
 			(	calcLines
 				(	insertTermEscapes('abc\nde\rf\r\nxyz\t', state),
-					calcLinesStateToMode(state)
+					calcLinesStateToMode(state, {tabWidth: 4})
 				),
 				{nLine: 4, nColumn: 5}
 			);
@@ -319,7 +319,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'\n L\t1\n    \n Line 2222\n',
-				{indent: '**', wrapWidth: 8}
+				{indent: '**', wrapWidth: 8, tabWidth: 4}
 			),
 			'\n**L\t1\n\n**Line\n**2222\n'
 		);
@@ -465,7 +465,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'\nLine\t1\nLin\t2\n',
-				{wrapWidth: 8}
+				{wrapWidth: 8, tabWidth: 4}
 			),
 			'\nLine\n1\nLin\t2\n'
 		);
@@ -473,7 +473,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'\nLine\t1\nLin\t2\n',
-				{wrapWidth: 8, endl: '\r'}
+				{wrapWidth: 8, endl: '\r', tabWidth: 4}
 			),
 			'\rLine\r1\rLin\t2\r'
 		);
@@ -482,7 +482,7 @@ Deno.test
 		(	indentAndWrap
 			(	`	Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
 				`,
-				{wrapWidth: 40, indent: '\t'}
+				{wrapWidth: 40, indent: '\t', tabWidth: 4}
 			),
 			"\tLorem ipsum dolor sit amet,\n\tconsectetur adipiscing elit, sed do\n\teiusmod tempor incididunt ut labore\n\tet dolore magna aliqua.\n"
 		);
@@ -492,7 +492,7 @@ Deno.test
 			(	`	Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
 					dolore magna aliqua.
 				`,
-				{wrapWidth: 40, indent: '\t', ignoreFirstIndent: true}
+				{wrapWidth: 40, indent: '\t', ignoreFirstIndent: true, tabWidth: 4}
 			),
 			"\tLorem ipsum dolor sit amet,\n\tconsectetur adipiscing elit, sed do\n\teiusmod tempor incididunt ut labore\n\tet\n\tdolore magna aliqua.\n"
 		);
@@ -502,7 +502,7 @@ Deno.test
 			(	`	Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
 					dolore magna aliqua.
 				`,
-				{wrapWidth: 20, indent: '', ignoreFirstIndent: true}
+				{wrapWidth: 20, indent: '', ignoreFirstIndent: true, tabWidth: 4}
 			),
 			"Lorem ipsum dolor\nsit amet,\nconsectetur\nadipiscing elit, sed\ndo eiusmod tempor\nincididunt ut labore\net\ndolore magna aliqua.\n"
 		);
@@ -512,7 +512,7 @@ Deno.test
 			(	`	Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
 					dolore magna aliqua.
 				`,
-				{wrapWidth: 22, indent: '  ', ignoreFirstIndent: true}
+				{wrapWidth: 22, indent: '  ', ignoreFirstIndent: true, tabWidth: 4}
 			),
 			"  Lorem ipsum dolor\n  sit amet,\n  consectetur\n  adipiscing elit, sed\n  do eiusmod tempor\n  incididunt ut labore\n  et\n  dolore magna aliqua.\n"
 		);
@@ -523,7 +523,7 @@ Deno.test
 					consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
 					dolore magna aliqua.
 				`,
-				{wrapWidth: 22, indent: '  ', ignoreFirstIndent: true}
+				{wrapWidth: 22, indent: '  ', ignoreFirstIndent: true, tabWidth: 4}
 			),
 			"  Lorem ipsum dolor\n  sit amet,\n  consectetur\n  adipiscing elit, sed\n  do eiusmod tempor\n  incididunt ut labore\n  et\n  dolore magna aliqua.\n"
 		);
@@ -534,7 +534,7 @@ Deno.test
 					adipiscing elit, sed do eiusmod tempor incididunt ut labore et
 					dolore magna aliqua.
 				`,
-				{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true}
+				{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, tabWidth: 4}
 			),
 			"  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n"
 		);
@@ -545,7 +545,7 @@ Deno.test
 				 \tadipiscing elit, sed do eiusmod tempor incididunt ut labore et
 				 \tdolore magna aliqua.
 				`,
-				{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true}
+				{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, tabWidth: 4}
 			),
 			"  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n"
 		);
@@ -560,7 +560,7 @@ Deno.test
 					 \t  ${esc2}adipiscing elit, sed do eiusmod tempor incididunt ut labore et
 					 \t  dolore magna aliqua.${esc3}
 					`,
-					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true}
+					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, tabWidth: 4}
 				),
 				`  Lorem ipsum dolor sit amet,${esc1} consectetur\n  ${esc2}adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.${esc3}\n`
 			);
@@ -574,7 +574,7 @@ Deno.test
 					${esc1} \t  adipiscing elit, sed do eiusmod tempor incididunt ut labore et
 					${esc1} \t  dolore magna aliqua.
 					`,
-					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, mode: 'term'}
+					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, mode: 'term', tabWidth: 4}
 				),
 				`  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n`
 			);
@@ -588,7 +588,7 @@ Deno.test
 					 \t ${esc1} adipiscing elit, sed do eiusmod tempor incididunt ut labore et
 					 \t ${esc1} dolore magna aliqua.
 					`,
-					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, mode: 'term'}
+					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, mode: 'term', tabWidth: 4}
 				),
 				`  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n`
 			);
@@ -602,7 +602,7 @@ Deno.test
 					 \t  ${esc1}adipiscing elit, sed do eiusmod tempor incididunt ut labore et
 					 \t  ${esc1}dolore magna aliqua.
 					`,
-					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, mode: 'term'}
+					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, mode: 'term', tabWidth: 4}
 				),
 				`  Lorem ipsum dolor sit amet, consectetur\n  adipiscing elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.\n`
 			);
@@ -616,7 +616,7 @@ Deno.test
 					 \t  adipiscing${esc1} elit, sed do eiusmod tempor incididunt ut labore et
 					 \t  dolore magna aliqua.${esc1}
 					`,
-					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, mode: 'term'}
+					{wrapWidth: 100, indent: '  ', ignoreFirstIndent: true, mode: 'term', tabWidth: 4}
 				),
 				`  L${esc1}orem ipsum dolor sit amet, consectetur\n  adipiscing${esc1} elit, sed do eiusmod tempor incididunt ut labore et\n  dolore magna aliqua.${esc1}\n`
 			);
@@ -695,7 +695,7 @@ Deno.test
 		assertEquals
 		(	getTextRect
 			(	' Line 1\n Line 2\n',
-				{indent: '\n\t', wrapWidth: 80}
+				{indent: '\n\t', wrapWidth: 80, tabWidth: 4}
 			),
 			{nLines: 5, nColumns: 10}
 		);
@@ -703,7 +703,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'\tabcde',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'    abcde'
 		);
@@ -711,7 +711,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'a\tbcde',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'a   bcde'
 		);
@@ -719,7 +719,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'a\tbcde',
-				{tabsToSpaces: false}
+				{tabsToSpaces: false, tabWidth: 4}
 			),
 			'a\tbcde'
 		);
@@ -727,7 +727,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'ab\tcde',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'ab  cde'
 		);
@@ -735,7 +735,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'abc\tde',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'abc de'
 		);
@@ -743,7 +743,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'abcd\te',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'abcd    e'
 		);
@@ -751,7 +751,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'a\tb\tcde',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'a   b   cde'
 		);
@@ -759,7 +759,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'a\tb \tcde',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'a   b   cde'
 		);
@@ -767,7 +767,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'a\tb \t cde',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'a   b    cde'
 		);
@@ -775,7 +775,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'a\tb \t\ncde',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'a   b\ncde'
 		);
@@ -783,7 +783,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'a\tb\t \ncde',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'a   b\ncde'
 		);
@@ -791,7 +791,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'a\tb\ncd\te\nf',
-				{tabsToSpaces: true}
+				{tabsToSpaces: true, tabWidth: 4}
 			),
 			'a   b\ncd  e\nf'
 		);
@@ -799,7 +799,7 @@ Deno.test
 		assertEquals
 		(	indentAndWrap
 			(	'a\tb\ncd\te\nf',
-				{indent: ' ', tabsToSpaces: true}
+				{indent: ' ', tabsToSpaces: true, tabWidth: 4}
 			),
 			' a  b\n cd e\n f'
 		);
@@ -888,6 +888,47 @@ Deno.test
 				{indent: '', tabsToSpaces: true}
 			),
 			'abcde'
+		);
+	}
+);
+
+Deno.test
+(	'textTable',
+	() =>
+	{	assertEquals
+		(	textTable
+			(	[	[	{	text: 'Lorem ipsum',
+						},
+						{	text:
+							`dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\n\tincididunt ut labore et`,
+						}
+					]
+				],
+				{borderStyle: BorderStyle.Double, tabWidth: 8}
+			),
+			`	╔═══════════╦══════════════════════════════════════════════════════════════════╗
+				║Lorem ipsum║dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor║
+				║           ║\tincididunt ut labore et                                        ║
+				╚═══════════╩══════════════════════════════════════════════════════════════════╝
+			`.trimStart().replace(/\r?\n\s*/g, '\n')
+		);
+
+		assertEquals
+		(	textTable
+			(	[	[	{	text: 'Lorem ipsum',
+						},
+						{	text:
+							`dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\n\tincididunt ut labore et`,
+						}
+					]
+				],
+				{borderStyle: BorderStyle.Double, tabWidth: 8, tabsToSpaces: true}
+			),
+			`	╔═══════════╦══════════════════════════════════════════════════════════════════╗
+				║Lorem ipsum║dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor║
+				║           ║   incididunt ut labore et                                        ║
+				╚═══════════╩══════════════════════════════════════════════════════════════════╝
+			`.trimStart().replace(/\r?\n\s*/g, '\n')
 		);
 	}
 );

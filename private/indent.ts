@@ -1,3 +1,5 @@
+export const DEFAULT_TAB_WIDTH = 8;
+
 const C_SPACE = ' '.charCodeAt(0);
 const C_TAB = '\t'.charCodeAt(0);
 const C_CR = '\r'.charCodeAt(0);
@@ -51,7 +53,7 @@ export const enum State
 	If `options.ignoreFirstIndent` is set, will look for common indent starting at second line, so the text can be trimmed.
 	If you already know the common indent (e.g. you called `findCommonIndent()`), you can provide it as `knownCommonIndent` to save some calculation time.
 	If `knownCommonIndent` doesn't match the result of `findCommonIndent()`, the behavior is undefined.
-	- If `options.wrapWidth` is set, it inserts `options.endl`, so there're no lines longer than `options.wrapWidth` columns. Columns are calculated with respect to `options.tabWidth` (default 4).
+	- If `options.wrapWidth` is set, it inserts `options.endl`, so there're no lines longer than `options.wrapWidth` columns. Columns are calculated with respect to `options.tabWidth` (default 8).
  **/
 export function indentAndWrap(text: string, options?: IndentAndWrapOptions, knownCommonIndent?: string)
 {	return doIndentAndWrap(false, text, options, knownCommonIndent).res;
@@ -69,11 +71,14 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 {	let indent = options?.indent;
 	const ignoreFirstIndent = options?.ignoreFirstIndent || false;
 	const overflowWrap = options?.overflowWrap || false;
-	const tabWidth = Math.max(1, options?.tabWidth || 4);
+	const tabWidth = Math.max(1, options?.tabWidth || DEFAULT_TAB_WIDTH);
 	const tabsToSpaces = options?.tabsToSpaces || false;
 	const endl = options?.endl || '\n';
 	const isTerm = options?.mode == 'term';
-	let wrapWidth = Math.max(1, options?.wrapWidth || (isRect || tabsToSpaces ? Number.MAX_SAFE_INTEGER-1 : Number.MAX_SAFE_INTEGER)); // columns are not counted when wrapWidth == Number.MAX_SAFE_INTEGER
+	let wrapWidth = Math.max(1, options?.wrapWidth || Number.MAX_SAFE_INTEGER);
+	if (wrapWidth==Number.MAX_SAFE_INTEGER && isRect || tabsToSpaces)
+	{	wrapWidth = Number.MAX_SAFE_INTEGER - 1; // columns are not counted when wrapWidth == Number.MAX_SAFE_INTEGER
+	}
 
 	let commonIndent = '';
 	let indentCol = 0;
@@ -227,7 +232,7 @@ export function findCommonIndent(text: string, options?: FindCommonIndentOptions
 	If `options.mode` is `term`, skips terminal escape sequences (like VT100 color codes).
  **/
 export function calcLines(text: string, options?: CalcLinesOptions, from=0, to=Number.MAX_SAFE_INTEGER, nLine=1, nColumn=1)
-{	const tabWidth = Math.max(1, options?.tabWidth || 4);
+{	const tabWidth = Math.max(1, options?.tabWidth || DEFAULT_TAB_WIDTH);
 	const isTerm = options?.mode == 'term';
 
 	if (to > text.length)
@@ -313,9 +318,10 @@ function precedingSpaceLen(text: string, i: number, isTerm: boolean)
  **/
 export function scanLine(text: string, i: number, nColumn: number, wrapWidth: number, overflowWrap: boolean, tabWidth: number, tabsToSpaces: boolean, isTerm: boolean)
 {	const {length} = text;
-	let wordStart = 0;
-	let wordEnd = 0;
-	let wordEndCol = 0;
+	const start = i;
+	let wordStart = i;
+	let wordEnd = i;
+	let wordEndCol = nColumn;
 	let prevIsSpace = true;
 	let tabPos = tabsToSpaces ? -1 : -2; // -2: no count; -1: no TAB occured yet; >=0: tab occured, but no next nonspace occured
 	let tabCol = 0;
@@ -394,7 +400,7 @@ export function scanLine(text: string, i: number, nColumn: number, wrapWidth: nu
 				{	if (prevIsSpace)
 					{	return {n: wordEnd, nextN: i, nextCol: wordEndCol, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 					}
-					if (wordEnd)
+					if (wordEnd > start)
 					{	return {n: wordEnd, nextN: wordStart, nextCol: wordEndCol, state: State.WANT_ENDL, tabPos, tabEndPos, tabLen: tabEndCol-tabCol};
 					}
 					if (overflowWrap)

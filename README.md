@@ -97,7 +97,7 @@ This can lead to indent increase or decrease.
 If `options.ignoreFirstIndent` is set, will look for common indent starting at second line, so the text can be trimmed.
 If you already know the common indent (e.g. you called `findCommonIndent()`), you can provide it as `knownCommonIndent` to save some calculation time.
 If `knownCommonIndent` doesn't match the result of `findCommonIndent()`, the behavior is undefined.
-- If `options.wrapWidth` is set, it inserts `options.endl`, so there're no lines longer than `options.wrapWidth` columns. Columns are calculated with respect to `options.tabWidth` (default 4).
+- If `options.wrapWidth` is set, it inserts `options.endl`, so there're no lines longer than `options.wrapWidth` columns. Columns are calculated with respect to `options.tabWidth` (default 8).
 If `options.overflowWrap` is set, can break long words, that are wider than `options.overflowWrap`.
 - If `options.tabsToSpaces` is set, converts tabs to spaces.
 

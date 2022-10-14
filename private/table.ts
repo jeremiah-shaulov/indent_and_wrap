@@ -1,4 +1,4 @@
-import {getTextRect, GetTextRectOptions, scanLine, State} from "./indent.ts";
+import {getTextRect, GetTextRectOptions, scanLine, State, DEFAULT_TAB_WIDTH} from "./indent.ts";
 import {rgb24} from './deps.ts';
 
 // TODO: overflowWrap
@@ -56,7 +56,7 @@ export function textTable(rows: Cell[][], options?: TextTableOptions, nColumn=0)
 {	const borderStyle = options?.borderStyle ?? BorderStyle.Solid;
 	const borderColor = options?.borderColor;
 	const endl = options?.endl || '\n';
-	const tabWidth = Math.max(1, options?.tabWidth || 4);
+	const tabWidth = Math.max(1, options?.tabWidth || DEFAULT_TAB_WIDTH);
 	const tabsToSpaces = options?.tabsToSpaces || false;
 	const isTerm = options?.mode == 'term';
 
@@ -123,7 +123,10 @@ export function textTable(rows: Cell[][], options?: TextTableOptions, nColumn=0)
 		for (let j=0, jEnd=rowHeight; j<jEnd; j++)
 		{	let col = nColumn;
 			for (let k=0, kEnd=columnWidths.length; k<kEnd; k++)
-			{	res += borderSep;
+			{	if (k || borderStyle)
+				{	res += borderSep;
+					col++;
+				}
 				const cw = columnWidths[k];
 				const cellWidth = cw.selectedWidth;
 				const cell = cw.rows[i];
@@ -182,7 +185,7 @@ class TableDim
 	{	const borderStyle = options?.borderStyle ?? BorderStyle.Solid;
 		const minWidth = options?.minWidth || 0;
 		let maxWidth = options?.maxWidth ?? Number.MAX_SAFE_INTEGER;
-		const tabWidth = Math.max(1, options?.tabWidth || 4);
+		const tabWidth = Math.max(1, options?.tabWidth || DEFAULT_TAB_WIDTH);
 		const mode = options?.mode;
 
 		if (maxWidth < minWidth)
