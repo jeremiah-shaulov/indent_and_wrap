@@ -897,10 +897,9 @@ Deno.test
 	() =>
 	{	assertEquals
 		(	textTable
-			(	[	[	{	text: 'Lorem ipsum',
+			(	[	[	{	content: 'Lorem ipsum',
 						},
-						{	text:
-							`dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\n\tincididunt ut labore et`,
+						{	content: `dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\n\tincididunt ut labore et`,
 						}
 					]
 				],
@@ -915,10 +914,9 @@ Deno.test
 
 		assertEquals
 		(	textTable
-			(	[	[	{	text: 'Lorem ipsum',
+			(	[	[	{	content: 'Lorem ipsum',
 						},
-						{	text:
-							`dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\n\tincididunt ut labore et`,
+						{	content: `dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\n\tincididunt ut labore et`,
 						}
 					]
 				],

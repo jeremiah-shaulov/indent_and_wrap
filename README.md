@@ -7,7 +7,7 @@ Can work on text that contains terminal escape sequences.
 **Indent**
 
 ```ts
-import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.10/mod.ts';
+import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.12/mod.ts';
 
 console.log
 (	indentAndWrap
@@ -30,19 +30,19 @@ Result:
 **Text table**
 
 ```ts
-import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.10/mod.ts';
+import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.12/mod.ts';
 
 console.log
 (	textTable
-	(	[	[	{	text: 'Lorem ipsum',
+	(	[	[	{	content: 'Lorem ipsum',
 				},
-				{	text: 'dolor sit amet,\nconsectetur adipiscing elit,\nsed do',
-					options: {paddingLeft: 2, paddingRight: 1, nowrap: true},
+				{	content: 'dolor sit amet,\nconsectetur adipiscing elit,\nsed do',
+					options: {paddingLeft: 1, paddingRight: 1, nowrap: true},
 				}
 			],
-			[	{	text: 'eiusmod',
+			[	{	content: 'eiusmod',
 				},
-				{	text: 'tempor',
+				{	content: 'tempor',
 					options: {textAlign: TextAlign.Center},
 				}
 			]
@@ -55,13 +55,13 @@ console.log
 Result:
 
 ```
-╔═══════════╦═══════════════════════════════╗
-║           ║  dolor sit amet,              ║
-║Lorem ipsum║  consectetur adipiscing elit, ║
-║           ║  sed do                       ║
-╠═══════════╬═══════════════════════════════╣
-║eiusmod    ║            tempor             ║
-╚═══════════╩═══════════════════════════════╝
+╔═══════════╦══════════════════════════════╗
+║           ║ dolor sit amet,              ║
+║Lorem ipsum║ consectetur adipiscing elit, ║
+║           ║ sed do                       ║
+╠═══════════╬══════════════════════════════╣
+║eiusmod    ║            tempor            ║
+╚═══════════╩══════════════════════════════╝
 ```
 
 # Exported functions
@@ -163,7 +163,7 @@ If `options.mode` is `term`, skips terminal escape sequences (like VT100 color c
 function textTable(rows: Cell[][], options?: TextTableOptions, nColumn=0): string;
 
 type Cell =
-{	text: string;
+{	content: string|TextTable;
 	options?: CellOptions;
 };
 
@@ -209,6 +209,10 @@ const enum VerticalAlign
 	Middle,
 	Bottom,
 }
+
+class TextTable
+{	constructor(rows: Cell[][], options?: TextTableOptions);
+}
 ```
 
-Generates text table.
+Generates text table with or without border. Tables can be nested, and this allows to generate complex layouts.

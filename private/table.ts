@@ -4,10 +4,10 @@ import {rgb24} from './deps.ts';
 // TODO: overflowWrap
 // TODO: table min-height
 // TODO: colSpan, rowSpan
-// TODO: nested tables
+// TODO: border-width thick
 
 export type Cell =
-{	text: string;
+{	content: string|TextTable;
 	options?: CellOptions;
 };
 export type TextTableOptions =
@@ -53,147 +53,262 @@ export const enum VerticalAlign
 }
 
 export function textTable(rows: Cell[][], options?: TextTableOptions, nColumn=0)
-{	const borderStyle = options?.borderStyle ?? BorderStyle.Solid;
-	const borderColor = options?.borderColor;
-	const endl = options?.endl || '\n';
-	const tabWidth = Math.max(1, options?.tabWidth || DEFAULT_TAB_WIDTH);
-	const tabsToSpaces = options?.tabsToSpaces || false;
-	const isTerm = options?.mode == 'term';
+{	return new TextTable(rows, options).toString(nColumn);
+}
 
-	const {rowHeights, columnWidths} = new TableDim(rows, options);
+export class TextTable
+{	#borderStyle: BorderStyle;
+	#borderColor: number | {r: number, g: number, b: number} | undefined;
+	#minWidth: number;
+	#maxWidth: number;
+	#endl: string;
+	#tabWidth: number;
+	#tabsToSpaces: boolean;
+	#mode: 'plain'|'term'|undefined;
 
-	// 1. Border
-	const borderHChar = borderStyle==BorderStyle.Double ? '═': '─';
-	const borderVChar = borderStyle==BorderStyle.Double ? '║': '│';
+	#optionsCopied = false;
+	#dim: TableDim;
+	#dimCalced = false;
 
-	const borderTopLeftChar = borderStyle==BorderStyle.Double ? '╔': '┌';
-	const borderTopMidChar = borderStyle==BorderStyle.Double ? '╦': '┬';
-	const borderTopRightChar = borderStyle==BorderStyle.Double ? '╗': '┐';
+	#lastResNColumn = NaN;
+	#lastRes = '';
 
-	const borderBottomLeftChar = borderStyle==BorderStyle.Double ? '╚': '└';
-	const borderBottomMidChar = borderStyle==BorderStyle.Double ? '╩': '┴';
-	const borderBottomRightChar = borderStyle==BorderStyle.Double ? '╝': '┘';
+	#lastTextRectNLines = -1;
+	#lastTextRectNColumns = -1;
+	#lastTextRectMaxWidth = -1;
+	#lastTextRectAddedSpace = -1;
 
-	const borderMidLeftChar = borderStyle==BorderStyle.Double ? '╠': '├';
-	const borderMidMidChar = borderStyle==BorderStyle.Double ? '╬': '┼';
-	const borderMidRightChar = borderStyle==BorderStyle.Double ? '╣': '┤';
-
-	let borderSep = ' ';
-	let borderTop = '';
-	let borderMid = '';
-	let borderBottom = '';
-	if (borderStyle)
-	{	borderSep = borderVChar;
-		for (const cw of columnWidths)
-		{	const cellWidth = cw.selectedWidth;
-			if (borderTop.length > 1)
-			{	borderTop += borderTopMidChar;
-				borderMid += borderMidMidChar;
-				borderBottom += borderBottomMidChar;
-			}
-			borderTop += borderHChar.repeat(cellWidth);
-			borderMid += borderHChar.repeat(cellWidth);
-			borderBottom += borderHChar.repeat(cellWidth);
-		}
-		borderTop = borderTopLeftChar + borderTop + borderTopRightChar;
-		borderMid = borderMidLeftChar + borderMid + borderMidRightChar;
-		borderBottom = borderBottomLeftChar + borderBottom + borderBottomRightChar;
-		if (borderColor != undefined)
-		{	borderSep = rgb24(borderSep, borderColor);
-			borderTop = rgb24(borderTop, borderColor);
-			borderMid = rgb24(borderMid, borderColor);
-			borderBottom = rgb24(borderBottom, borderColor);
-		}
-		borderTop += endl;
-		borderMid += endl;
-		borderBottom += endl;
+	constructor(rows: Cell[][], options?: TextTableOptions)
+	{	this.#borderStyle = options?.borderStyle ?? BorderStyle.Solid;
+		this.#borderColor = options?.borderColor;
+		this.#minWidth = options?.minWidth || 0;
+		this.#maxWidth = options?.maxWidth ?? Number.MAX_SAFE_INTEGER;
+		this.#endl = options?.endl || '\n';
+		this.#tabWidth = Math.max(1, options?.tabWidth || DEFAULT_TAB_WIDTH);
+		this.#tabsToSpaces = options?.tabsToSpaces || false;
+		this.#mode = this.#borderColor!=undefined ? 'term' : options?.mode;
+		this.#dim = new TableDim(rows, this.#tabWidth, this.#mode);
 	}
 
-	// 2. Result
-	let res = '';
+	#copyOptionsToChildren()
+	{	if (!this.#optionsCopied)
+		{	this.#optionsCopied = true;
+			for (const cw of this.#dim.columnWidths)
+			{	for (const row of cw.rows)
+				{	if (row.content instanceof TextTable)
+					{	row.content.#endl = this.#endl;
+						row.content.#tabWidth = this.#tabWidth;
+						row.content.#tabsToSpaces = this.#tabsToSpaces;
+						row.content.#mode = this.#mode;
+						row.content.#copyOptionsToChildren();
+					}
+				}
+			}
+		}
+	}
 
-	// cells
-	for (let i=0, iEnd=rowHeights.length; i<iEnd; i++)
-	{	// border line
-		if (borderStyle)
-		{	res += i==0 ? borderTop : borderMid;
+	toString(nColumn=0)
+	{	if (this.#lastResNColumn == nColumn)
+		{	return this.#lastRes;
 		}
 
-		const rowHeight = rowHeights[i];
-		for (let j=0, jEnd=rowHeight; j<jEnd; j++)
-		{	let col = nColumn;
-			for (let k=0, kEnd=columnWidths.length; k<kEnd; k++)
-			{	if (k || borderStyle)
-				{	res += borderSep;
-					col++;
+		this.#copyOptionsToChildren();
+
+		const borderStyle = this.#borderStyle;
+		const borderColor = this.#borderColor;
+		const minWidth = this.#minWidth;
+		const maxWidth = this.#maxWidth;
+		const endl = this.#endl;
+		const tabWidth = this.#tabWidth;
+		const tabsToSpaces = this.#tabsToSpaces;
+		const mode = this.#mode;
+		const isTerm = mode == 'term';
+
+		if (!this.#dimCalced)
+		{	this.#dimCalced = true;
+			this.#dim.calc(borderStyle, minWidth, maxWidth);
+		}
+		const {rowHeights, columnWidths} = this.#dim;
+
+		// 1. Border
+		const borderHChar = borderStyle==BorderStyle.Double ? '═': '─';
+		const borderVChar = borderStyle==BorderStyle.Double ? '║': '│';
+
+		const borderTopLeftChar = borderStyle==BorderStyle.Double ? '╔': '┌';
+		const borderTopMidChar = borderStyle==BorderStyle.Double ? '╦': '┬';
+		const borderTopRightChar = borderStyle==BorderStyle.Double ? '╗': '┐';
+
+		const borderBottomLeftChar = borderStyle==BorderStyle.Double ? '╚': '└';
+		const borderBottomMidChar = borderStyle==BorderStyle.Double ? '╩': '┴';
+		const borderBottomRightChar = borderStyle==BorderStyle.Double ? '╝': '┘';
+
+		const borderMidLeftChar = borderStyle==BorderStyle.Double ? '╠': '├';
+		const borderMidMidChar = borderStyle==BorderStyle.Double ? '╬': '┼';
+		const borderMidRightChar = borderStyle==BorderStyle.Double ? '╣': '┤';
+
+		let borderSep = ' ';
+		let borderTop = '';
+		let borderMid = '';
+		let borderBottom = '';
+		if (borderStyle)
+		{	borderSep = borderVChar;
+			for (const cw of columnWidths)
+			{	const cellWidth = cw.selectedWidth;
+				if (borderTop.length > 0)
+				{	borderTop += borderTopMidChar;
+					borderMid += borderMidMidChar;
+					borderBottom += borderBottomMidChar;
 				}
-				const cw = columnWidths[k];
-				const cellWidth = cw.selectedWidth;
-				const cell = cw.rows[i];
-				if (!cell)
-				{	res += ' '.repeat(cellWidth);
-				}
-				else
-				{	const {paddingLeft, textAlign} = cell;
-					if (paddingLeft)
-					{	res += ' '.repeat(paddingLeft);
+				borderTop += borderHChar.repeat(cellWidth);
+				borderMid += borderHChar.repeat(cellWidth);
+				borderBottom += borderHChar.repeat(cellWidth);
+			}
+			borderTop = borderTopLeftChar + borderTop + borderTopRightChar;
+			borderMid = borderMidLeftChar + borderMid + borderMidRightChar;
+			borderBottom = borderBottomLeftChar + borderBottom + borderBottomRightChar;
+			if (borderColor != undefined)
+			{	borderSep = rgb24(borderSep, borderColor);
+				borderTop = rgb24(borderTop, borderColor);
+				borderMid = rgb24(borderMid, borderColor);
+				borderBottom = rgb24(borderBottom, borderColor);
+			}
+			borderTop += endl;
+			borderMid += endl;
+			borderBottom += endl;
+		}
+
+		// 2. Result
+		let res = '';
+
+		// cells
+		for (let i=0, iEnd=rowHeights.length; i<iEnd; i++)
+		{	// border line
+			if (borderStyle)
+			{	res += i==0 ? borderTop : borderMid;
+			}
+
+			const rowHeight = rowHeights[i];
+			for (let j=0, jEnd=rowHeight; j<jEnd; j++)
+			{	let col = nColumn;
+				for (let k=0, kEnd=columnWidths.length; k<kEnd; k++)
+				{	if (k || borderStyle)
+					{	res += borderSep;
+						col++;
 					}
-					const {line, nextCol} = cell.getLine(tabWidth, tabsToSpaces, isTerm, col+paddingLeft);
-					const pad = cellWidth - nextCol + col;
-					switch (textAlign)
-					{	case TextAlign.Left:
-							res += line;
-							res += ' '.repeat(pad);
-							break;
-						case TextAlign.Right:
-							res += ' '.repeat(pad);
-							res += line;
-							break;
-						default:
-						{	const l = pad >> 1;
-							res += ' '.repeat(l);
-							res += line;
-							res += ' '.repeat(pad - l);
+					const cw = columnWidths[k];
+					const cellWidth = cw.selectedWidth;
+					const cell = cw.rows[i];
+					if (!cell)
+					{	res += ' '.repeat(cellWidth);
+					}
+					else
+					{	const {paddingLeft, textAlign} = cell;
+						if (paddingLeft)
+						{	res += ' '.repeat(paddingLeft);
+						}
+						const {line, nextCol} = cell.getLine(tabWidth, tabsToSpaces, isTerm, col+paddingLeft);
+						const pad = cellWidth - nextCol + col;
+						switch (textAlign)
+						{	case TextAlign.Left:
+								res += line;
+								res += ' '.repeat(pad);
+								break;
+							case TextAlign.Right:
+								res += ' '.repeat(pad);
+								res += line;
+								break;
+							default:
+							{	const l = pad >> 1;
+								res += ' '.repeat(l);
+								res += line;
+								res += ' '.repeat(pad - l);
+							}
 						}
 					}
+					col += cellWidth;
 				}
-				col += cellWidth;
+				if (borderStyle)
+				{	res += borderSep;
+				}
+				res += endl;
 			}
-			if (borderStyle)
-			{	res += borderSep;
-			}
-			res += endl;
 		}
+
+		// bottom border line
+		if (borderStyle && rowHeights.length>0)
+		{	res += borderBottom;
+		}
+
+		// 3. Done
+		this.#lastResNColumn = nColumn;
+		this.#lastRes = res;
+		return res;
 	}
 
-	// bottom border line
-	if (borderStyle && rowHeights.length>0)
-	{	res += borderBottom;
+	setMaxWidth(maxWidth: number)
+	{	if (maxWidth != this.#minWidth)
+		{	this.#minWidth = maxWidth;
+			this.#dimCalced = false;
+		}
+		return this;
 	}
 
-	// 3. Done
-	return res;
+	getTextRect()
+	{	if (this.#lastTextRectNLines != -1)
+		{	if (this.#maxWidth >= this.#lastTextRectMaxWidth-this.#lastTextRectAddedSpace && this.#maxWidth <= this.#lastTextRectMaxWidth)
+			{	return {nLines: this.#lastTextRectNLines, nColumns: this.#lastTextRectNColumns};
+			}
+		}
+
+		this.#copyOptionsToChildren();
+
+		if (!this.#dimCalced)
+		{	this.#dimCalced = true;
+			this.#dim.calc(this.#borderStyle, this.#minWidth, this.#maxWidth);
+		}
+
+		let nLines = this.#dim.tableHeight;
+		let nColumns = this.#dim.tableWidth;
+		if (this.#borderStyle)
+		{	nLines += this.#dim.rowHeights.length + 1;
+			nColumns += this.#dim.columnWidths.length + 1;
+		}
+		else
+		{	nColumns += this.#dim.columnWidths.length - 1;
+		}
+
+		this.#lastTextRectNLines = nLines;
+		this.#lastTextRectNColumns = nColumns;
+		this.#lastTextRectMaxWidth = this.#maxWidth;
+		this.#lastTextRectAddedSpace = this.#dim.addedSpace;
+
+		return {nLines, nColumns};
+	}
 }
 
 class TableDim
-{	columnWidths = new Array<ColumnWidth>();
+{	/**	ColumnWidth objects for each column, each containing "selectedWidth".
+	 **/
+	columnWidths = new Array<ColumnWidth>();
+
+	/**	Height of each row (without border)
+	 **/
 	rowHeights = new Array<number>();
 
-	private tableHeight = -1;
+	/**	Without border.
+	 **/
+	tableHeight = 0;
 
-	constructor(rows: Cell[][], options: TextTableOptions|undefined)
-	{	const borderStyle = options?.borderStyle ?? BorderStyle.Solid;
-		const minWidth = options?.minWidth || 0;
-		let maxWidth = options?.maxWidth ?? Number.MAX_SAFE_INTEGER;
-		const tabWidth = Math.max(1, options?.tabWidth || DEFAULT_TAB_WIDTH);
-		const mode = options?.mode;
+	/**	Without border.
+	 **/
+	tableWidth = 0;
 
-		if (maxWidth < minWidth)
-		{	maxWidth = minWidth;
-		}
-		let isUpdated = false;
+	/**	How many spaces were added to columns. For maxWidth less by this value, table will remain the same height.
+	 **/
+	addedSpace = 0;
 
-		// Populate columnWidths with columns and rows
+	constructor(rows: Cell[][], tabWidth: number, mode: 'plain'|'term'|undefined)
+	{	// Populate columnWidths with columns and rows
 		const {columnWidths} = this;
 		for (const tr of rows)
 		{	for (let i=0, iEnd=tr.length; i<iEnd; i++)
@@ -205,6 +320,15 @@ class TableDim
 				cw.addRow(tr[i]);
 			}
 		}
+	}
+
+	calc(borderStyle: BorderStyle, minWidth: number, maxWidth: number)
+	{	const {columnWidths} = this;
+		if (maxWidth < minWidth)
+		{	maxWidth = minWidth;
+		}
+		let isUpdated = false;
+
 		// Calc min width
 		let canMinWidth = 0;
 		for (const cw of columnWidths)
@@ -225,6 +349,7 @@ class TableDim
 			// If available max width is less than desired minWidth, must distribute free space between columns
 			if (canMaxWidth < minWidth)
 			{	const add = minWidth - canMaxWidth;
+				this.addedSpace = add;
 				const add1 = Math.trunc(add / columnWidths.length);
 				const rem = add % columnWidths.length;
 				for (let i=0, iEnd=columnWidths.length; i<iEnd; i++)
@@ -245,7 +370,7 @@ class TableDim
 				}
 				else
 				{	// Select optimal widths for each column
-					this.updateTableHeight();
+					this.updateWidthHeight();
 					// Calc table width if selecting average width of each column
 					let baseWidth = 0;
 					for (const cw of columnWidths)
@@ -263,6 +388,7 @@ class TableDim
 						}
 					}
 					let add = maxWidth - baseWidth;
+					this.addedSpace = add;
 L:					while (true)
 					{	const {tableHeight} = this;
 						for (let a=1; a<=add; a++)
@@ -272,9 +398,9 @@ L:					while (true)
 							for (let i=columnWidths.length-1; i>=0; i--)
 							{	const cw = columnWidths[i];
 								this.updateTableHeightIfAddingColumnWidth(cw, a);
-								if (this.tableHeight < h)
+								if (tableHeight < h)
 								{	si = i;
-									h = this.tableHeight;
+									h = tableHeight;
 								}
 							}
 							// found?
@@ -283,7 +409,7 @@ L:					while (true)
 								cw.selectedWidth += a;
 								add -= a;
 								if (si != 0)
-								{	this.updateTableHeight();
+								{	this.updateWidthHeight();
 								}
 								continue L;
 							}
@@ -306,7 +432,7 @@ L:					while (true)
 			}
 		}
 		if (!isUpdated)
-		{	this.updateTableHeight();
+		{	this.updateWidthHeight();
 		}
 		// Set each cell height and vertical margin
 		for (const cw of columnWidths)
@@ -322,12 +448,12 @@ L:					while (true)
 		cw.selectedWidth += add;
 		const {nColumns} = cw.getForWidth(cw.selectedWidth);
 		if (nColumns != selectedWidth)
-		{	this.updateTableHeight();
+		{	this.updateWidthHeight();
 		}
 		cw.selectedWidth -= add;
 	}
 
-	updateTableHeight()
+	updateWidthHeight()
 	{	const {columnWidths} = this;
 		const cw = columnWidths[0];
 		if (cw)
@@ -335,6 +461,7 @@ L:					while (true)
 			for (let i=0, iEnd=nLines.length; i<iEnd; i++)
 			{	this.rowHeights[i] = nLines[i];
 			}
+			this.tableWidth = cw.selectedWidth;
 			for (let j=1, jEnd=columnWidths.length; j<jEnd; j++)
 			{	const cw = columnWidths[j];
 				const {nLines} = cw.getForWidth(cw.selectedWidth);
@@ -343,6 +470,7 @@ L:					while (true)
 					{	this.rowHeights[i] = nLines[i];
 					}
 				}
+				this.tableWidth += cw.selectedWidth;
 			}
 			this.tableHeight = 0;
 			for (const l of this.rowHeights)
@@ -381,7 +509,7 @@ class ColumnWidth
 		if (!rec)
 		{	for (const row of this.rows)
 			{	this.getTextRectOptions.wrapWidth = row.nowrap ? Number.MAX_SAFE_INTEGER : wrapWidth - row.paddingLeft - row.paddingRight;
-				let {nColumns, nLines} = getTextRect(row.text, this.getTextRectOptions, '');
+				let {nColumns, nLines} = typeof(row.content)=='string' ? getTextRect(row.content, this.getTextRectOptions, '') : row.content.setMaxWidth(this.getTextRectOptions.wrapWidth).getTextRect();
 				if (nColumns < row.minWidth)
 				{	nColumns = row.minWidth;
 				}
@@ -410,7 +538,7 @@ class ColumnWidth
 }
 
 class ColumnCell
-{	text: string;
+{	content: string|TextTable;
 
 	textAlign: TextAlign;
 	verticalAlign: VerticalAlign;
@@ -428,8 +556,8 @@ class ColumnCell
 	private i = 0;
 
 	constructor(cell: Cell)
-	{	const {text, options} = cell;
-		this.text = text;
+	{	const {content, options} = cell;
+		this.content = content;
 		this.textAlign = options?.textAlign ?? TextAlign.Left;
 		this.verticalAlign = options?.verticalAlign ?? VerticalAlign.Middle;
 		this.nowrap = options?.nowrap || false;
@@ -460,7 +588,8 @@ class ColumnCell
 	{	if (--this.addPaddingTop >= 0)
 		{	return {line: '', nextCol: nColumn};
 		}
-		let {i, text} = this;
+		let {i, content} = this;
+		const text = typeof(content)=='string' ? content : content.toString(nColumn);
 		const {length} = text;
 		let line = '';
 		while (i < length)
