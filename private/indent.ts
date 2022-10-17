@@ -75,7 +75,7 @@ function doIndentAndWrap(isRect: boolean, text: string, options?: IndentAndWrapO
 	const tabsToSpaces = options?.tabsToSpaces || false;
 	const endl = options?.endl || '\n';
 	const isTerm = options?.mode == 'term';
-	let wrapWidth = Math.max(1, options?.wrapWidth || Number.MAX_SAFE_INTEGER);
+	let wrapWidth = Math.max(1, options?.wrapWidth ?? Number.MAX_SAFE_INTEGER);
 	if (wrapWidth==Number.MAX_SAFE_INTEGER && isRect || tabsToSpaces)
 	{	wrapWidth = Number.MAX_SAFE_INTEGER - 1; // columns are not counted when wrapWidth == Number.MAX_SAFE_INTEGER
 	}

@@ -5,6 +5,7 @@ import {rgb24} from './deps.ts';
 // TODO: table min-height
 // TODO: colSpan, rowSpan
 // TODO: border-width thick
+// TODO: justify
 
 export type Cell =
 {	content: string|TextTable;
@@ -107,6 +108,14 @@ export class TextTable
 		}
 	}
 
+	#getDim()
+	{	if (!this.#dimCalced)
+		{	this.#dimCalced = true;
+			this.#dim.calc(this.#borderStyle, this.#minWidth, this.#maxWidth);
+		}
+		return this.#dim;
+	}
+
 	toString(nColumn=0)
 	{	if (this.#lastResNColumn == nColumn)
 		{	return this.#lastRes;
@@ -116,19 +125,13 @@ export class TextTable
 
 		const borderStyle = this.#borderStyle;
 		const borderColor = this.#borderColor;
-		const minWidth = this.#minWidth;
-		const maxWidth = this.#maxWidth;
 		const endl = this.#endl;
 		const tabWidth = this.#tabWidth;
 		const tabsToSpaces = this.#tabsToSpaces;
 		const mode = this.#mode;
 		const isTerm = mode == 'term';
 
-		if (!this.#dimCalced)
-		{	this.#dimCalced = true;
-			this.#dim.calc(borderStyle, minWidth, maxWidth);
-		}
-		const {rowHeights, columnWidths} = this.#dim;
+		const {rowHeights, columnWidths} = this.#getDim();
 
 		// 1. Border
 		const borderHChar = borderStyle==BorderStyle.Double ? '═': '─';
@@ -214,8 +217,9 @@ export class TextTable
 								res += ' '.repeat(pad);
 								break;
 							case TextAlign.Right:
-								res += ' '.repeat(pad);
+								res += ' '.repeat(pad - cell.paddingRight);
 								res += line;
+								res += ' '.repeat(cell.paddingRight);
 								break;
 							default:
 							{	const l = pad >> 1;
@@ -262,25 +266,22 @@ export class TextTable
 
 		this.#copyOptionsToChildren();
 
-		if (!this.#dimCalced)
-		{	this.#dimCalced = true;
-			this.#dim.calc(this.#borderStyle, this.#minWidth, this.#maxWidth);
-		}
+		const {tableHeight, tableWidth, rowHeights, columnWidths, addedSpace} = this.#getDim();
 
-		let nLines = this.#dim.tableHeight;
-		let nColumns = this.#dim.tableWidth;
+		let nLines = tableHeight;
+		let nColumns = tableWidth;
 		if (this.#borderStyle)
-		{	nLines += this.#dim.rowHeights.length + 1;
-			nColumns += this.#dim.columnWidths.length + 1;
+		{	nLines += rowHeights.length + 1;
+			nColumns += columnWidths.length + 1;
 		}
 		else
-		{	nColumns += this.#dim.columnWidths.length - 1;
+		{	nColumns += columnWidths.length - 1;
 		}
 
 		this.#lastTextRectNLines = nLines;
 		this.#lastTextRectNColumns = nColumns;
 		this.#lastTextRectMaxWidth = this.#maxWidth;
-		this.#lastTextRectAddedSpace = this.#dim.addedSpace;
+		this.#lastTextRectAddedSpace = addedSpace;
 
 		return {nLines, nColumns};
 	}
@@ -361,74 +362,72 @@ class TableDim
 					cw.selectedWidth = nColumns + add1;
 				}
 			}
+			// If available max width doesn't exceed the desired max width
+			else if (canMaxWidth <= maxWidth)
+			{	for (const cw of columnWidths)
+				{	cw.selectedWidth = cw.getForWidth(Math.min(cw.maxWidth, maxWidth)).nColumns;
+				}
+			}
+			// Select optimal widths for each column
 			else
-			{	// If available max width doesn't exceed the desired max width
-				if (canMaxWidth <= maxWidth)
-				{	for (const cw of columnWidths)
-					{	cw.selectedWidth = cw.getForWidth(Math.min(cw.maxWidth, maxWidth)).nColumns;
-					}
+			{	this.updateWidthHeight();
+				// Calc table width if selecting average width of each column
+				let baseWidth = 0;
+				for (const cw of columnWidths)
+				{	const avg = cw.getForWidth(Math.min(cw.maxWidth, maxWidth)).nColumns - cw.getForWidth(cw.minWidth).nColumns;
+					cw.selectedWidth = cw.getForWidth(avg).nColumns;
+					baseWidth += cw.selectedWidth + 1; // plus border
 				}
-				else
-				{	// Select optimal widths for each column
-					this.updateWidthHeight();
-					// Calc table width if selecting average width of each column
-					let baseWidth = 0;
+				baseWidth += borderStyle==BorderStyle.None ? -1 : +1;
+				// Start from either average or minimal width of each column
+				if (baseWidth > maxWidth)
+				{	// minimal
+					baseWidth = canMinWidth;
 					for (const cw of columnWidths)
-					{	const avg = cw.getForWidth(Math.min(cw.maxWidth, maxWidth)).nColumns - cw.getForWidth(cw.minWidth).nColumns;
-						cw.selectedWidth = cw.getForWidth(avg).nColumns;
-						baseWidth += cw.selectedWidth + 1; // plus border
+					{	cw.selectedWidth = cw.getForWidth(cw.minWidth).nColumns;
 					}
-					baseWidth += borderStyle==BorderStyle.None ? -1 : +1;
-					// Start from either average or minimal width of each column
-					if (baseWidth > maxWidth)
-					{	// minimal
-						baseWidth = canMinWidth;
-						for (const cw of columnWidths)
-						{	cw.selectedWidth = cw.getForWidth(cw.minWidth).nColumns;
-						}
-					}
-					let add = maxWidth - baseWidth;
-					this.addedSpace = add;
-L:					while (true)
-					{	const {tableHeight} = this;
-						for (let a=1; a<=add; a++)
-						{	let si = -1;
-							let h = tableHeight;
-							// find column that becomes lower if adding "a" width
-							for (let i=columnWidths.length-1; i>=0; i--)
-							{	const cw = columnWidths[i];
-								this.updateTableHeightIfAddingColumnWidth(cw, a);
-								if (tableHeight < h)
-								{	si = i;
-									h = tableHeight;
-								}
-							}
-							// found?
-							if (si != -1)
-							{	const cw = columnWidths[si];
-								cw.selectedWidth += a;
-								add -= a;
-								if (si != 0)
-								{	this.updateWidthHeight();
-								}
-								continue L;
-							}
-						}
-						break;
-					}
-					if (add > 0)
-					{	const add1 = Math.trunc(add / columnWidths.length);
-						const rem = add % columnWidths.length;
-						for (let i=0, iEnd=columnWidths.length; i<iEnd; i++)
-						{	let nColumns = columnWidths[i].selectedWidth;
-							if (iEnd-i <= rem)
-							{	nColumns++;
-							}
-							columnWidths[i].selectedWidth = nColumns + add1;
-						}
-					}
-					isUpdated = true;
 				}
+				let add = maxWidth - baseWidth;
+				this.addedSpace = add;
+L:				while (true)
+				{	const {tableHeight} = this;
+					for (let a=1; a<=add; a++)
+					{	let si = -1;
+						let h = tableHeight;
+						// find column that becomes lower if adding "a" width
+						for (let i=columnWidths.length-1; i>=0; i--)
+						{	const cw = columnWidths[i];
+							this.updateTableHeightIfAddingColumnWidth(cw, a);
+							if (tableHeight < h)
+							{	si = i;
+								h = tableHeight;
+							}
+						}
+						// found?
+						if (si != -1)
+						{	const cw = columnWidths[si];
+							cw.selectedWidth += a;
+							add -= a;
+							if (si != 0)
+							{	this.updateWidthHeight();
+							}
+							continue L;
+						}
+					}
+					break;
+				}
+				if (add > 0)
+				{	const add1 = Math.trunc(add / columnWidths.length);
+					const rem = add % columnWidths.length;
+					for (let i=0, iEnd=columnWidths.length; i<iEnd; i++)
+					{	let nColumns = columnWidths[i].selectedWidth;
+						if (iEnd-i <= rem)
+						{	nColumns++;
+						}
+						columnWidths[i].selectedWidth = nColumns + add1;
+					}
+				}
+				isUpdated = true;
 			}
 		}
 		if (!isUpdated)
@@ -593,7 +592,7 @@ class ColumnCell
 		const {length} = text;
 		let line = '';
 		while (i < length)
-		{	const {n, nextN, nextCol, state, tabPos, tabEndPos, tabLen} = scanLine(text, i, nColumn, nColumn+this.columnWidth, false, tabWidth, tabsToSpaces, isTerm);
+		{	const {n, nextN, nextCol, state, tabPos, tabEndPos, tabLen} = scanLine(text, i, nColumn, nColumn+this.columnWidth-this.paddingLeft-this.paddingRight, false, tabWidth, tabsToSpaces, isTerm);
 			if (n > i)
 			{	if (tabEndPos == -1)
 				{	line += text.slice(i, n);

@@ -1,5 +1,5 @@
 # indent_and_wrap: Text utility for Deno
-Finds and replaces common indent, hard-wraps text, and generates text tables.
+Finds and replaces common indent, hard-wraps text, generates text tables and table-based complex text layouts.
 Can work on text that contains terminal escape sequences.
 
 # Example
@@ -7,7 +7,7 @@ Can work on text that contains terminal escape sequences.
 **Indent**
 
 ```ts
-import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.12/mod.ts';
+import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.13/mod.ts';
 
 console.log
 (	indentAndWrap
@@ -30,7 +30,7 @@ Result:
 **Text table**
 
 ```ts
-import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.12/mod.ts';
+import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.13/mod.ts';
 
 console.log
 (	textTable
@@ -62,6 +62,45 @@ Result:
 ╠═══════════╬══════════════════════════════╣
 ║eiusmod    ║            tempor            ║
 ╚═══════════╩══════════════════════════════╝
+```
+
+**Complex layout**
+
+```ts
+import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.13/mod.ts';
+
+console.log
+(	textTable
+	(	[	[	{	content: new TextTable
+					(	[	[	{	content: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+									options: {maxWidth: 30, textAlign: TextAlign.Right, paddingRight: 3}
+								},
+								{	content: `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`,
+									options: {maxWidth: 30, textAlign: TextAlign.Left}
+								}
+							]
+						],
+						{borderStyle: BorderStyle.None}
+					),
+					options: {paddingLeft: 3, paddingRight: 3}
+				}
+			]
+		],
+		{borderStyle: BorderStyle.Solid, borderColor: 0xDDDDDD}
+	)
+);
+```
+
+Result:
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│   Lorem ipsum dolor sit amet,    Lorem ipsum dolor sit amet,      │
+│        consectetur adipiscing    consectetur adipiscing elit,     │
+│   elit, sed do eiusmod tempor    sed do eiusmod tempor            │
+│       incididunt ut labore et    incididunt ut labore et dolore   │
+│          dolore magna aliqua.    magna aliqua.                    │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 # Exported functions
