@@ -67,16 +67,16 @@ Result:
 **Complex layout**
 
 ```ts
-import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.13/mod.ts';
+import {textTable, TextTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.13/mod.ts';
 
 console.log
 (	textTable
 	(	[	[	{	content: new TextTable
 					(	[	[	{	content: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-									options: {maxWidth: 30, textAlign: TextAlign.Right, paddingRight: 3}
+									options: {maxWidth: 30, textAlign: TextAlign.Right}
 								},
 								{	content: `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`,
-									options: {maxWidth: 30, textAlign: TextAlign.Left}
+									options: {maxWidth: 33, textAlign: TextAlign.Left, paddingLeft: 3}
 								}
 							]
 						],
@@ -94,13 +94,13 @@ console.log
 Result:
 
 ```
-┌───────────────────────────────────────────────────────────────────┐
-│   Lorem ipsum dolor sit amet,    Lorem ipsum dolor sit amet,      │
-│        consectetur adipiscing    consectetur adipiscing elit,     │
-│   elit, sed do eiusmod tempor    sed do eiusmod tempor            │
-│       incididunt ut labore et    incididunt ut labore et dolore   │
-│          dolore magna aliqua.    magna aliqua.                    │
-└───────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│      Lorem ipsum dolor sit amet,    Lorem ipsum dolor sit amet,      │
+│     consectetur adipiscing elit,    consectetur adipiscing elit,     │
+│            sed do eiusmod tempor    sed do eiusmod tempor            │
+│   incididunt ut labore et dolore    incididunt ut labore et dolore   │
+│                    magna aliqua.    magna aliqua.                    │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 # Exported functions
