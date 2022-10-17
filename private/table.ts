@@ -5,9 +5,9 @@ import {rgb24} from './deps.ts';
 // TODO: table min-height
 // TODO: colSpan, rowSpan
 // TODO: border-width thick
+// TODO: cell background-color
 
 const C_SPACE = ' '.charCodeAt(0);
-const C_TAB = '\t'.charCodeAt(0);
 
 export type Cell =
 {	content: string|TextTable;
@@ -212,7 +212,7 @@ export class TextTable
 						if (paddingLeft)
 						{	res += ' '.repeat(paddingLeft);
 						}
-						const {line, nextCol} = cell.getLine(tabWidth, tabsToSpaces, isTerm, col+paddingLeft);
+						const {line, nextCol} = cell.getLine(tabWidth, tabsToSpaces || textAlign!=TextAlign.Left, isTerm, col+paddingLeft);
 						let pad = cellWidth - nextCol + col;
 						switch (textAlign)
 						{	case TextAlign.Left:
@@ -232,25 +232,29 @@ export class TextTable
 								break;
 							}
 							default: // TextAlign.Justify
-							{	const index = wordsInLine(line);
-								const add = pad / index.length;
-								let acc = 0;
-								let pos = index[0];
-								res += line.slice(0, pos);
-								for (let w=1, wEnd=index.length; w<wEnd; w++)
-								{	acc += add;
-									if (acc >= 1)
-									{	const curAdd = Math.trunc(acc);
-										res += ' '.repeat(curAdd);
-										acc -= curAdd;
-										pad -= curAdd;
-									}
-									res += line.slice(pos, index[w]);
-									pos = index[w];
+								if (pad == 0)
+								{	res += line;
 								}
-								res += ' '.repeat(pad);
-								res += line.slice(pos);
-							}
+								else
+								{	const index = wordsInLine(line);
+									const add = pad / index.length;
+									let acc = 0;
+									let pos = index[0];
+									res += line.slice(0, pos);
+									for (let w=1, wEnd=index.length; w<wEnd; w++)
+									{	acc += add;
+										if (acc >= 1)
+										{	const curAdd = Math.trunc(acc);
+											res += ' '.repeat(curAdd);
+											acc -= curAdd;
+											pad -= curAdd;
+										}
+										res += line.slice(pos, index[w]);
+										pos = index[w];
+									}
+									res += ' '.repeat(pad);
+									res += line.slice(pos);
+								}
 						}
 					}
 					col += cellWidth;
@@ -640,10 +644,10 @@ function wordsInLine(text: string)
 {	const index = [];
 	for (let i=0, iEnd=text.length; i<iEnd; i++)
 	{	const c = text.charCodeAt(i);
-		if (c==C_SPACE || c==C_TAB)
+		if (c == C_SPACE)
 		{	for (; i<iEnd; i++)
 			{	const c = text.charCodeAt(i);
-				if (c!=C_SPACE && c!=C_TAB)
+				if (c != C_SPACE)
 				{	index[index.length] = i - 1;
 					break;
 				}
