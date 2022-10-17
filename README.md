@@ -241,6 +241,7 @@ const enum TextAlign
 {	Left,
 	Right,
 	Center,
+	Justify,
 }
 
 const enum VerticalAlign
