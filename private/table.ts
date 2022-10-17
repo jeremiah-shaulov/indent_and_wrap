@@ -5,7 +5,9 @@ import {rgb24} from './deps.ts';
 // TODO: table min-height
 // TODO: colSpan, rowSpan
 // TODO: border-width thick
-// TODO: justify
+
+const C_SPACE = ' '.charCodeAt(0);
+const C_TAB = '\t'.charCodeAt(0);
 
 export type Cell =
 {	content: string|TextTable;
@@ -45,6 +47,7 @@ export const enum TextAlign
 {	Left,
 	Right,
 	Center,
+	Justify,
 }
 
 export const enum VerticalAlign
@@ -205,27 +208,48 @@ export class TextTable
 					{	res += ' '.repeat(cellWidth);
 					}
 					else
-					{	const {paddingLeft, textAlign} = cell;
+					{	const {paddingLeft, paddingRight, textAlign} = cell;
 						if (paddingLeft)
 						{	res += ' '.repeat(paddingLeft);
 						}
 						const {line, nextCol} = cell.getLine(tabWidth, tabsToSpaces, isTerm, col+paddingLeft);
-						const pad = cellWidth - nextCol + col;
+						let pad = cellWidth - nextCol + col;
 						switch (textAlign)
 						{	case TextAlign.Left:
 								res += line;
 								res += ' '.repeat(pad);
 								break;
 							case TextAlign.Right:
-								res += ' '.repeat(pad - cell.paddingRight);
+								res += ' '.repeat(pad - paddingRight);
 								res += line;
-								res += ' '.repeat(cell.paddingRight);
+								res += ' '.repeat(paddingRight);
 								break;
-							default:
-							{	const l = pad >> 1;
+							case TextAlign.Center:
+							{	const l = (pad - paddingRight) >> 1;
 								res += ' '.repeat(l);
 								res += line;
 								res += ' '.repeat(pad - l);
+								break;
+							}
+							default: // TextAlign.Justify
+							{	const index = wordsInLine(line);
+								const add = pad / index.length;
+								let acc = 0;
+								let pos = index[0];
+								res += line.slice(0, pos);
+								for (let w=1, wEnd=index.length; w<wEnd; w++)
+								{	acc += add;
+									if (acc >= 1)
+									{	const curAdd = Math.trunc(acc);
+										res += ' '.repeat(curAdd);
+										acc -= curAdd;
+										pad -= curAdd;
+									}
+									res += line.slice(pos, index[w]);
+									pos = index[w];
+								}
+								res += ' '.repeat(pad);
+								res += line.slice(pos);
 							}
 						}
 					}
@@ -610,4 +634,21 @@ class ColumnCell
 		this.i = i;
 		return {line, nextCol: nColumn};
 	}
+}
+
+function wordsInLine(text: string)
+{	const index = [];
+	for (let i=0, iEnd=text.length; i<iEnd; i++)
+	{	const c = text.charCodeAt(i);
+		if (c==C_SPACE || c==C_TAB)
+		{	for (; i<iEnd; i++)
+			{	const c = text.charCodeAt(i);
+				if (c!=C_SPACE && c!=C_TAB)
+				{	index[index.length] = i - 1;
+					break;
+				}
+			}
+		}
+	}
+	return index;
 }
