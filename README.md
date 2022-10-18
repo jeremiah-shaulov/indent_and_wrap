@@ -210,6 +210,7 @@ type TextTableOptions =
 {	minWidth?: number;
 	maxWidth?: number;
 	borderStyle?: BorderStyle;
+	borderWidth?: number;
 	borderColor?: number | {r: number, g: number, b: number};
 
 	endl?: string;
@@ -232,9 +233,12 @@ type CellOptions =
 };
 
 const enum BorderStyle
-{	None,
+{	NoneNoGap,
+	None,
 	Solid,
 	Double,
+	SolidRound,
+	Dashed,
 }
 
 const enum TextAlign
