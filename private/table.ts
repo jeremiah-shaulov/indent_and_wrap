@@ -38,8 +38,18 @@ export type CellOptions =
 };
 
 export const enum BorderStyle
-{	None,
+{	// Options:
+
+	/**	No border, but columns are separated with 1-space gap.
+	 **/
+	None,
+
+	/**	Single-lined border.
+	 **/
 	Solid,
+
+	/**	Double-lined border.
+	 **/
 	Double,
 }
 
@@ -185,6 +195,7 @@ export class TextTable
 
 		// 2. Result
 		let res = '';
+		const wordIndex = new Array<number>();
 
 		// cells
 		for (let i=0, iEnd=rowHeights.length; i<iEnd; i++)
@@ -236,12 +247,12 @@ export class TextTable
 								{	res += line;
 								}
 								else
-								{	const index = wordsInLine(line);
-									const add = pad / index.length;
+								{	const wordIndexLength = wordsInLine(line, wordIndex);
+									const add = pad / wordIndexLength;
 									let acc = 0;
-									let pos = index[0];
+									let pos = wordIndex[0];
 									res += line.slice(0, pos);
-									for (let w=1, wEnd=index.length; w<wEnd; w++)
+									for (let w=1; w<wordIndexLength; w++)
 									{	acc += add;
 										if (acc >= 1)
 										{	const curAdd = Math.trunc(acc);
@@ -249,8 +260,8 @@ export class TextTable
 											acc -= curAdd;
 											pad -= curAdd;
 										}
-										res += line.slice(pos, index[w]);
-										pos = index[w];
+										res += line.slice(pos, wordIndex[w]);
+										pos = wordIndex[w];
 									}
 									res += ' '.repeat(pad);
 									res += line.slice(pos);
@@ -640,19 +651,19 @@ class ColumnCell
 	}
 }
 
-function wordsInLine(text: string)
-{	const index = [];
+function wordsInLine(text: string, wordIndex: number[])
+{	let len = 0;
 	for (let i=0, iEnd=text.length; i<iEnd; i++)
 	{	const c = text.charCodeAt(i);
 		if (c == C_SPACE)
 		{	for (; i<iEnd; i++)
 			{	const c = text.charCodeAt(i);
 				if (c != C_SPACE)
-				{	index[index.length] = i - 1;
+				{	wordIndex[len++] = i - 1;
 					break;
 				}
 			}
 		}
 	}
-	return index;
+	return len;
 }

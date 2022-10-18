@@ -4,7 +4,7 @@ Can work on text that contains terminal escape sequences.
 
 # Example
 
-**Indent**
+## Indent
 
 ```ts
 import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.14/mod.ts';
@@ -27,7 +27,7 @@ Result:
         et dolore magna aliqua.
 ```
 
-**Text table**
+## Text table
 
 ```ts
 import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.14/mod.ts';
@@ -64,7 +64,7 @@ Result:
 ╚═══════════╩══════════════════════════════╝
 ```
 
-**Complex layout**
+## Complex layout
 
 ```ts
 import {textTable, TextTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.14/mod.ts';
