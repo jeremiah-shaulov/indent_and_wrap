@@ -37,22 +37,6 @@ export type CellOptions =
 	paddingLeft?: number;
 };
 
-export const enum BorderStyle
-{	// Options:
-
-	/**	No border, but columns are separated with 1-space gap.
-	 **/
-	None,
-
-	/**	Single-lined border.
-	 **/
-	Solid,
-
-	/**	Double-lined border.
-	 **/
-	Double,
-}
-
 export const enum TextAlign
 {	Left,
 	Right,
@@ -65,6 +49,46 @@ export const enum VerticalAlign
 	Middle,
 	Bottom,
 }
+
+export const enum BorderStyle
+{	// Options:
+
+	/**	No border, and columns are conjuncted
+	 **/
+	NoneNoGap,
+
+	/**	No border, but columns are separated with 1-space gap.
+	 **/
+	None,
+
+	/**	Single-lined border.
+	 **/
+	Solid,
+
+	/**	Double-lined border.
+	 **/
+	Double,
+
+	/**	Single-lined border with round corners.
+	 **/
+	SolidRound,
+
+	/**	Dashed.
+	 **/
+	Dashed,
+}
+
+const enum Border
+{	H, V, TopLeft, TopMid, TopRight, MidLeft, MidMid, MidRight, BottomLeft, BottomMid, BottomRight,
+}
+const BORDERS =
+[	'',            // BorderStyle.NoneNoGap
+	'',            // BorderStyle.None
+	'─│┌┬┐├┼┤└┴┘', // BorderStyle.Solid
+	'═║╔╦╗╠╬╣╚╩╝', // BorderStyle.Double
+	'─│╭┬╮├┼┤╰┴╯', // BorderStyle.SolidRound
+	'╌┊┌┬┐├┼┤└┴┘', // BorderStyle.Dashed
+];
 
 export function textTable(rows: Cell[][], options?: TextTableOptions, nColumn=0)
 {	return new TextTable(rows, options).toString(nColumn);
@@ -147,41 +171,27 @@ export class TextTable
 		const {rowHeights, columnWidths} = this.#getDim();
 
 		// 1. Border
-		const borderHChar = borderStyle==BorderStyle.Double ? '═': '─';
-		const borderVChar = borderStyle==BorderStyle.Double ? '║': '│';
-
-		const borderTopLeftChar = borderStyle==BorderStyle.Double ? '╔': '┌';
-		const borderTopMidChar = borderStyle==BorderStyle.Double ? '╦': '┬';
-		const borderTopRightChar = borderStyle==BorderStyle.Double ? '╗': '┐';
-
-		const borderBottomLeftChar = borderStyle==BorderStyle.Double ? '╚': '└';
-		const borderBottomMidChar = borderStyle==BorderStyle.Double ? '╩': '┴';
-		const borderBottomRightChar = borderStyle==BorderStyle.Double ? '╝': '┘';
-
-		const borderMidLeftChar = borderStyle==BorderStyle.Double ? '╠': '├';
-		const borderMidMidChar = borderStyle==BorderStyle.Double ? '╬': '┼';
-		const borderMidRightChar = borderStyle==BorderStyle.Double ? '╣': '┤';
-
 		let borderSep = ' ';
 		let borderTop = '';
 		let borderMid = '';
 		let borderBottom = '';
-		if (borderStyle)
-		{	borderSep = borderVChar;
+		const selectedBorder = BORDERS[borderStyle];
+		if (borderStyle > BorderStyle.None)
+		{	borderSep = selectedBorder[Border.V];
 			for (const cw of columnWidths)
 			{	const cellWidth = cw.selectedWidth;
 				if (borderTop.length > 0)
-				{	borderTop += borderTopMidChar;
-					borderMid += borderMidMidChar;
-					borderBottom += borderBottomMidChar;
+				{	borderTop += selectedBorder[Border.TopMid];
+					borderMid += selectedBorder[Border.MidMid];
+					borderBottom += selectedBorder[Border.BottomMid];
 				}
-				borderTop += borderHChar.repeat(cellWidth);
-				borderMid += borderHChar.repeat(cellWidth);
-				borderBottom += borderHChar.repeat(cellWidth);
+				borderTop += selectedBorder[Border.H].repeat(cellWidth);
+				borderMid += selectedBorder[Border.H].repeat(cellWidth);
+				borderBottom += selectedBorder[Border.H].repeat(cellWidth);
 			}
-			borderTop = borderTopLeftChar + borderTop + borderTopRightChar;
-			borderMid = borderMidLeftChar + borderMid + borderMidRightChar;
-			borderBottom = borderBottomLeftChar + borderBottom + borderBottomRightChar;
+			borderTop = selectedBorder[Border.TopLeft] + borderTop + selectedBorder[Border.TopRight];
+			borderMid = selectedBorder[Border.MidLeft] + borderMid + selectedBorder[Border.MidRight];
+			borderBottom = selectedBorder[Border.BottomLeft] + borderBottom + selectedBorder[Border.BottomRight];
 			if (borderColor != undefined)
 			{	borderSep = rgb24(borderSep, borderColor);
 				borderTop = rgb24(borderTop, borderColor);
@@ -200,7 +210,7 @@ export class TextTable
 		// cells
 		for (let i=0, iEnd=rowHeights.length; i<iEnd; i++)
 		{	// border line
-			if (borderStyle)
+			if (borderStyle > BorderStyle.None)
 			{	res += i==0 ? borderTop : borderMid;
 			}
 
@@ -208,7 +218,7 @@ export class TextTable
 			for (let j=0, jEnd=rowHeight; j<jEnd; j++)
 			{	let col = nColumn;
 				for (let k=0, kEnd=columnWidths.length; k<kEnd; k++)
-				{	if (k || borderStyle)
+				{	if ((k || borderStyle>BorderStyle.None) && borderStyle!=BorderStyle.NoneNoGap)
 					{	res += borderSep;
 						col++;
 					}
@@ -270,7 +280,7 @@ export class TextTable
 					}
 					col += cellWidth;
 				}
-				if (borderStyle)
+				if (borderStyle > BorderStyle.None)
 				{	res += borderSep;
 				}
 				res += endl;
@@ -278,7 +288,7 @@ export class TextTable
 		}
 
 		// bottom border line
-		if (borderStyle && rowHeights.length>0)
+		if (borderStyle>BorderStyle.None && rowHeights.length>0)
 		{	res += borderBottom;
 		}
 
