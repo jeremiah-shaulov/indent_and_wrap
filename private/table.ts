@@ -247,7 +247,7 @@ export class TextTable
 								{	res += line;
 								}
 								else
-								{	const wordIndexLength = wordsInLine(line, wordIndex);
+								{	const wordIndexLength = wordsOnLine(line, wordIndex);
 									const add = pad / wordIndexLength;
 									let acc = 0;
 									let pos = wordIndex[0];
@@ -615,10 +615,10 @@ class ColumnCell
 				this.addPaddingTop = this.paddingTop;
 				break;
 			case VerticalAlign.Bottom:
-				this.addPaddingTop = this.paddingTop + rowHeight - cellHeight;
+				this.addPaddingTop = rowHeight - (cellHeight - this.paddingTop);
 				break;
 			default:
-				this.addPaddingTop = Math.max(this.paddingTop, (rowHeight - cellHeight + this.paddingTop + this.paddingBottom) >> 1);
+				this.addPaddingTop = this.paddingTop + (((rowHeight-this.paddingTop-this.paddingBottom) - (cellHeight-this.paddingTop-this.paddingBottom)) >> 1);
 		}
 	}
 
@@ -651,19 +651,17 @@ class ColumnCell
 	}
 }
 
-function wordsInLine(text: string, wordIndex: number[])
-{	let len = 0;
+function wordsOnLine(text: string, wordIndex: number[])
+{	let wordIndexLength = 0;
 	for (let i=0, iEnd=text.length; i<iEnd; i++)
-	{	const c = text.charCodeAt(i);
-		if (c == C_SPACE)
+	{	if (text.charCodeAt(i) == C_SPACE)
 		{	for (; i<iEnd; i++)
-			{	const c = text.charCodeAt(i);
-				if (c != C_SPACE)
-				{	wordIndex[len++] = i - 1;
+			{	if (text.charCodeAt(i) != C_SPACE)
+				{	wordIndex[wordIndexLength++] = i - 1;
 					break;
 				}
 			}
 		}
 	}
-	return len;
+	return wordIndexLength;
 }
