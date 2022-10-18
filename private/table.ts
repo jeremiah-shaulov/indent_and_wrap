@@ -4,8 +4,9 @@ import {rgb24} from './deps.ts';
 // TODO: overflowWrap
 // TODO: table min-height
 // TODO: colSpan, rowSpan
-// TODO: border-width thick
+// TODO: border-width > 1
 // TODO: cell background-color
+// TODO: default text color
 
 const C_SPACE = ' '.charCodeAt(0);
 
@@ -17,6 +18,7 @@ export type TextTableOptions =
 {	minWidth?: number;
 	maxWidth?: number;
 	borderStyle?: BorderStyle;
+	borderWidth?: number;
 	borderColor?: number | {r: number, g: number, b: number};
 
 	endl?: string;
@@ -79,15 +81,31 @@ export const enum BorderStyle
 }
 
 const enum Border
-{	H, V, TopLeft, TopMid, TopRight, MidLeft, MidMid, MidRight, BottomLeft, BottomMid, BottomRight,
+{	V, TopH, MidH, BottomH, TopLeft, TopMid, TopRight, MidLeft, MidMid, MidRight, BottomLeft, BottomMid, BottomRight,
 }
-const BORDERS =
-[	'',            // BorderStyle.NoneNoGap
-	'',            // BorderStyle.None
-	'─│┌┬┐├┼┤└┴┘', // BorderStyle.Solid
-	'═║╔╦╗╠╬╣╚╩╝', // BorderStyle.Double
-	'─│╭┬╮├┼┤╰┴╯', // BorderStyle.SolidRound
-	'╌┊┌┬┐├┼┤└┴┘', // BorderStyle.Dashed
+const BORDERS_THIN =
+[	'',              // BorderStyle.NoneNoGap
+	'',              // BorderStyle.None
+	'│───┌┬┐├┼┤└┴┘', // BorderStyle.Solid
+	'║═══╔╦╗╠╬╣╚╩╝', // BorderStyle.Double
+	'│───╭┬╮├┼┤╰┴╯', // BorderStyle.SolidRound
+	'┊╌╌╌┌┬┐├┼┤└┴┘', // BorderStyle.Dashed
+];
+const BORDERS_MEDIUM =
+[	'',              // BorderStyle.NoneNoGap
+	'',              // BorderStyle.None
+	'┃━━━┏┳┓┣╋┫┗┻┛', // BorderStyle.Solid
+	'┃━━━┏┳┓┣╋┫┗┻┛', // BorderStyle.Double (not supported, same as solid)
+	'┃━━━┏┳┓┣╋┫┗┻┛', // BorderStyle.SolidRound (not supported, same as solid)
+	'┋╍╍╍┏┳┓┣╋┫┗┻┛', // BorderStyle.Dashed
+];
+const BORDERS_THICK =
+[	'',              // BorderStyle.NoneNoGap
+	'',              // BorderStyle.None
+	'█▄▄▀▄▄▄███▀▀▀', // BorderStyle.Solid
+	'█▄▄▀▄▄▄███▀▀▀', // BorderStyle.Double (not supported, same as solid)
+	'█▄▄▀▂▄▂███▔▀▔', // BorderStyle.SolidRound
+	'▖▖▖▘▖▖▖▖▖▖▘▘▘', // BorderStyle.Dashed
 ];
 
 export function textTable(rows: Cell[][], options?: TextTableOptions, nColumn=0)
@@ -96,6 +114,7 @@ export function textTable(rows: Cell[][], options?: TextTableOptions, nColumn=0)
 
 export class TextTable
 {	#borderStyle: BorderStyle;
+	#borderWidth: number;
 	#borderColor: number | {r: number, g: number, b: number} | undefined;
 	#minWidth: number;
 	#maxWidth: number;
@@ -117,7 +136,8 @@ export class TextTable
 	#lastTextRectAddedSpace = -1;
 
 	constructor(rows: Cell[][], options?: TextTableOptions)
-	{	this.#borderStyle = options?.borderStyle ?? BorderStyle.Solid;
+	{	this.#borderWidth = Math.max(0, options?.borderWidth ?? 0.125);
+		this.#borderStyle = this.#borderWidth==0 ? BorderStyle.NoneNoGap : options?.borderStyle ?? BorderStyle.Solid;
 		this.#borderColor = options?.borderColor;
 		this.#minWidth = options?.minWidth || 0;
 		this.#maxWidth = options?.maxWidth ?? Number.MAX_SAFE_INTEGER;
@@ -161,6 +181,7 @@ export class TextTable
 		this.#copyOptionsToChildren();
 
 		const borderStyle = this.#borderStyle;
+		const borderWidth = this.#borderWidth;
 		const borderColor = this.#borderColor;
 		const endl = this.#endl;
 		const tabWidth = this.#tabWidth;
@@ -175,9 +196,9 @@ export class TextTable
 		let borderTop = '';
 		let borderMid = '';
 		let borderBottom = '';
-		const selectedBorder = BORDERS[borderStyle];
 		if (borderStyle > BorderStyle.None)
-		{	borderSep = selectedBorder[Border.V];
+		{	const selectedBorder = (borderWidth>=2/3 ? BORDERS_THICK : borderWidth>=1/3 ? BORDERS_MEDIUM : BORDERS_THIN)[borderStyle];
+			borderSep = selectedBorder[Border.V];
 			for (const cw of columnWidths)
 			{	const cellWidth = cw.selectedWidth;
 				if (borderTop.length > 0)
@@ -185,9 +206,9 @@ export class TextTable
 					borderMid += selectedBorder[Border.MidMid];
 					borderBottom += selectedBorder[Border.BottomMid];
 				}
-				borderTop += selectedBorder[Border.H].repeat(cellWidth);
-				borderMid += selectedBorder[Border.H].repeat(cellWidth);
-				borderBottom += selectedBorder[Border.H].repeat(cellWidth);
+				borderTop += selectedBorder[Border.TopH].repeat(cellWidth);
+				borderMid += selectedBorder[Border.MidH].repeat(cellWidth);
+				borderBottom += selectedBorder[Border.BottomH].repeat(cellWidth);
 			}
 			borderTop = selectedBorder[Border.TopLeft] + borderTop + selectedBorder[Border.TopRight];
 			borderMid = selectedBorder[Border.MidLeft] + borderMid + selectedBorder[Border.MidRight];
