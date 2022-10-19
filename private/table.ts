@@ -162,13 +162,16 @@ export class TextTable
 					{	this.#mode = 'term';
 					}
 					if (cell.content instanceof TextTable)
-					{	cell.content.#endl = this.#endl;
+					{	// Copy parent to child
+						cell.content.#endl = this.#endl;
 						cell.content.#tabWidth = this.#tabWidth;
 						cell.content.#tabsToSpaces = this.#tabsToSpaces;
 						if (this.#mode === 'term')
 						{	cell.content.#mode = 'term';
 						}
+						// Do children
 						cell.content.#copyOptionsToChildren();
+						// Copy child to parent
 						if (cell.content.#mode === 'term')
 						{	this.#mode = 'term';
 						}
