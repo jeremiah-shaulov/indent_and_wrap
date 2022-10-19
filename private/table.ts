@@ -356,11 +356,11 @@ export class TextTable
 
 		let nLines = tableHeight;
 		let nColumns = tableWidth;
-		if (this.#borderStyle)
+		if (this.#borderStyle > BorderStyle.None)
 		{	nLines += rowHeights.length + 1;
 			nColumns += columnWidths.length + 1;
 		}
-		else
+		else if (this.#borderStyle != BorderStyle.NoneNoGap)
 		{	nColumns += columnWidths.length - 1;
 		}
 

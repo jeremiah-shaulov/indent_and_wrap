@@ -7,7 +7,7 @@ Can work on text that contains terminal escape sequences.
 ## Indent
 
 ```ts
-import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.16/mod.ts';
+import {indentAndWrap} from 'https://deno.land/x/indent_and_wrap@v0.0.17/mod.ts';
 
 console.log
 (	indentAndWrap
@@ -30,7 +30,7 @@ Result:
 ## Text table
 
 ```ts
-import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.16/mod.ts';
+import {textTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.17/mod.ts';
 
 console.log
 (	textTable
@@ -67,7 +67,7 @@ Result:
 ## Complex layout
 
 ```ts
-import {textTable, TextTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.16/mod.ts';
+import {textTable, TextTable, BorderStyle, TextAlign} from 'https://deno.land/x/indent_and_wrap@v0.0.17/mod.ts';
 
 console.log
 (	textTable
