@@ -1,12 +1,10 @@
 import {getTextRect, GetTextRectOptions, scanLine, State, DEFAULT_TAB_WIDTH} from "./indent.ts";
-import {rgb24} from './deps.ts';
+import {rgb24, bgRgb24} from './deps.ts';
 
 // TODO: overflowWrap
 // TODO: table min-height
 // TODO: colSpan, rowSpan
 // TODO: border-width > 1
-// TODO: cell background-color
-// TODO: default text color
 
 const C_SPACE = ' '.charCodeAt(0);
 
@@ -37,6 +35,7 @@ export type CellOptions =
 	paddingRight?: number;
 	paddingBottom?: number;
 	paddingLeft?: number;
+	backgroundColor?: number | {r: number, g: number, b: number};
 };
 
 export const enum TextAlign
@@ -115,7 +114,8 @@ export function textTable(rows: Cell[][], options?: TextTableOptions, nColumn=0)
 export class TextTable
 {	#borderStyle: BorderStyle;
 	#borderWidth: number;
-	#borderColor: number | {r: number, g: number, b: number} | undefined;
+	#borderColorBegin = '';
+	#borderColorEnd = '';
 	#minWidth: number;
 	#maxWidth: number;
 	#endl: string;
@@ -136,29 +136,42 @@ export class TextTable
 	#lastTextRectAddedSpace = -1;
 
 	constructor(rows: Cell[][], options?: TextTableOptions)
-	{	this.#borderWidth = Math.max(0, options?.borderWidth ?? 0.125);
+	{	const borderColor = options?.borderColor;
+		this.#borderWidth = Math.max(0, options?.borderWidth ?? 0.125);
 		this.#borderStyle = this.#borderWidth==0 ? BorderStyle.NoneNoGap : options?.borderStyle ?? BorderStyle.Solid;
-		this.#borderColor = options?.borderColor;
 		this.#minWidth = options?.minWidth || 0;
 		this.#maxWidth = options?.maxWidth ?? Number.MAX_SAFE_INTEGER;
 		this.#endl = options?.endl || '\n';
 		this.#tabWidth = Math.max(1, options?.tabWidth || DEFAULT_TAB_WIDTH);
 		this.#tabsToSpaces = options?.tabsToSpaces || false;
-		this.#mode = this.#borderColor!=undefined ? 'term' : options?.mode;
+		this.#mode = borderColor!=undefined ? 'term' : options?.mode;
 		this.#dim = new TableDim(rows, this.#tabWidth, this.#mode);
+		if (borderColor != undefined)
+		{	const beginEnd = rgb24('*', borderColor).split('*');
+			this.#borderColorBegin = beginEnd[0];
+			this.#borderColorEnd = beginEnd[1];
+		}
 	}
 
 	#copyOptionsToChildren()
 	{	if (!this.#optionsCopied)
 		{	this.#optionsCopied = true;
 			for (const cw of this.#dim.columnWidths)
-			{	for (const row of cw.rows)
-				{	if (row.content instanceof TextTable)
-					{	row.content.#endl = this.#endl;
-						row.content.#tabWidth = this.#tabWidth;
-						row.content.#tabsToSpaces = this.#tabsToSpaces;
-						row.content.#mode = this.#mode;
-						row.content.#copyOptionsToChildren();
+			{	for (const cell of cw.rows)
+				{	if (cell.backgroundColorBegin)
+					{	this.#mode = 'term';
+					}
+					if (cell.content instanceof TextTable)
+					{	cell.content.#endl = this.#endl;
+						cell.content.#tabWidth = this.#tabWidth;
+						cell.content.#tabsToSpaces = this.#tabsToSpaces;
+						if (this.#mode === 'term')
+						{	cell.content.#mode = 'term';
+						}
+						cell.content.#copyOptionsToChildren();
+						if (cell.content.#mode === 'term')
+						{	this.#mode = 'term';
+						}
 					}
 				}
 			}
@@ -182,7 +195,8 @@ export class TextTable
 
 		const borderStyle = this.#borderStyle;
 		const borderWidth = this.#borderWidth;
-		const borderColor = this.#borderColor;
+		const borderColorBegin = this.#borderColorBegin;
+		const borderColorEnd = this.#borderColorEnd;
 		const endl = this.#endl;
 		const tabWidth = this.#tabWidth;
 		const tabsToSpaces = this.#tabsToSpaces;
@@ -213,11 +227,11 @@ export class TextTable
 			borderTop = selectedBorder[Border.TopLeft] + borderTop + selectedBorder[Border.TopRight];
 			borderMid = selectedBorder[Border.MidLeft] + borderMid + selectedBorder[Border.MidRight];
 			borderBottom = selectedBorder[Border.BottomLeft] + borderBottom + selectedBorder[Border.BottomRight];
-			if (borderColor != undefined)
-			{	borderSep = rgb24(borderSep, borderColor);
-				borderTop = rgb24(borderTop, borderColor);
-				borderMid = rgb24(borderMid, borderColor);
-				borderBottom = rgb24(borderBottom, borderColor);
+			if (borderColorBegin)
+			{	borderSep = borderColorBegin + borderSep + borderColorEnd;
+				borderTop = borderColorBegin + borderTop + borderColorEnd;
+				borderMid = borderColorBegin + borderMid + borderColorEnd;
+				borderBottom = borderColorBegin + borderBottom + borderColorEnd;
 			}
 			borderTop += endl;
 			borderMid += endl;
@@ -250,10 +264,11 @@ export class TextTable
 					{	res += ' '.repeat(cellWidth);
 					}
 					else
-					{	const {paddingLeft, paddingRight, textAlign} = cell;
+					{	const {paddingLeft, paddingRight, textAlign, backgroundColorBegin, backgroundColorEnd} = cell;
 						if (paddingLeft)
 						{	res += ' '.repeat(paddingLeft);
 						}
+						res += backgroundColorBegin;
 						const {line, nextCol} = cell.getLine(tabWidth, tabsToSpaces || textAlign!=TextAlign.Left, isTerm, col+paddingLeft);
 						let pad = cellWidth - nextCol + col;
 						switch (textAlign)
@@ -298,6 +313,7 @@ export class TextTable
 									res += line.slice(pos);
 								}
 						}
+						res += backgroundColorEnd;
 					}
 					col += cellWidth;
 				}
@@ -619,6 +635,8 @@ class ColumnCell
 	paddingRight: number;
 	paddingBottom: number;
 	paddingLeft: number;
+	backgroundColorBegin = '';
+	backgroundColorEnd = '';
 
 	private columnWidth = 0;
 	private addPaddingTop = 0;
@@ -637,6 +655,12 @@ class ColumnCell
 		this.paddingRight = options?.paddingRight || 0;
 		this.paddingBottom = options?.paddingBottom || 0;
 		this.paddingLeft = options?.paddingLeft || 0;
+		const backgroundColor = options?.backgroundColor;
+		if (backgroundColor != undefined)
+		{	const beginEnd = bgRgb24('*', backgroundColor).split('*');
+			this.backgroundColorBegin = beginEnd[0];
+			this.backgroundColorEnd = beginEnd[1];
+		}
 	}
 
 	setCellDim(columnWidth: number, rowHeight: number, cellHeight: number)
